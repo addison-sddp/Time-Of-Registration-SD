@@ -1,13 +1,13 @@
 # Time of Registration, SD: Design Document
 
-Status: DRAFT, revision v2. Every rule, citation, date, and calendar entry is `verified: false` until the project owner changes it. The one exception is the desk flag license, which the owner verified on 2026-10-26 (transcribed by the drafter, section 9 and the checklist).
+Status: DRAFT, revision v3. Every rule, citation, date, and calendar entry is `verified: false` until the project owner changes it. The one exception is the desk flag license, which the owner verified on 2026-10-26 (transcribed by the drafter, section 9 and the checklist).
 
 Conventions used throughout:
 
 - "Owner" is the project owner. Only the owner may set any `verified` value to true.
 - "(owner-given)" marks a fact taken from the owner's brief. It is still unverified.
 - "PROPOSAL" marks a design choice made by the drafter that needs owner approval.
-- "UNSOURCED" marks a real-world claim for which no source has been located. No web research has been performed, so the only candidate URLs are ones the owner supplied (the flag page, and the Searchlight article, which has NOT been read). "RESOLVED" marks an open question the owner has answered.
+- "UNSOURCED" marks a real-world claim for which no source has been located. No web research has been performed, so the only candidate URLs are ones the owner supplied (the flag page, and the Searchlight article, whose text the owner pasted). "RESOLVED" marks an open question the owner has answered.
 
 ---
 
@@ -64,8 +64,10 @@ The display shows only "[Month] [Year]". The election calendar (section 5) has d
 | 6 | s06 | 2026-03-01 | March 2026 | June 2, 2026 | R1, R2 |
 | 7 | s07 | 2026-04-01 | April 2026 | June 2, 2026 | R1, R2, R3 |
 | 8 | s08 | 2026-05-01 | May 2026 | June 2, 2026 | R1, R2, R3 |
-| 9 | s09 | 2026-06-01 | June 2026 | June 2, 2026 (but see N1, Q27) | R1, R2, R3 |
-| 10 | s10 | 2026-06-03 | June 2026 | June 23, 2026 | R1, R2, R3 |
+| 9 | s09 | 2026-06-01 | June 2026 | June 23, 2026 ("municipal runoff, if required") | R1, R2, R3 |
+| 10 | s10 | 2026-06-03 | June 2026 | June 23, 2026 ("municipal runoff") | R1, R2, R3 |
+
+"Next election" means the next election still open for registration as of the shift date (Q27, resolved), so from May 19, 2026 it is the June 23 runoff. The B5 newspaper appears on s06 (March 1), and citizenship enforcement starts on s07 (April 1); this is a PROPOSAL (manager recommendation, owner may override; Q28). B3's "Feb to Mar shift" is read as the March 1 shift.
 
 The game ends after the June 3 shift: the ending cutscene plays, then the player returns to the main menu. No ending copy is written in this document. How the transition between the June 1 and June 3 shifts is presented (the displayed month does not change) is a Part B presentation detail.
 
@@ -90,6 +92,7 @@ Shift end: summary of applications processed and errors made
 - Applicant order is seeded by `hash(save_salt, shift_id, attempt_number)`. Restarting a shift after three errors replays the same applicants in a shuffled order (owner decision, Q10).
 - An optional per-applicant `pinned_position` in the shift data (for example the person who leaves the newspaper) is never shuffled. The remaining applicants are shuffled into the remaining positions.
 - Rationale: a restart is a retry of a known set, so tests are reproducible, while the shuffled order keeps a retry from being a memorized sequence.
+- Addresses are fictional street addresses. Tribal ID documents use tribe names from the owner-supplied list (Q31), including some not on the participating list so that denials occur; test fixtures may use neutral placeholder keys that never appear in the game.
 - The generator produces an intended applicant profile (for example "fails Rule 2 only") and renders documents from it. The profile is a generation input only. At runtime the ground truth verdict is always computed by the rule engine from the finished `Application` (section 3.6). The generator's intent is checked against the engine only in tests (section 3.9).
 
 ### 2.5 Consequence display
@@ -191,7 +194,7 @@ interface Document {
   is_photocopy: boolean;
   issue_date: ISODate | null;
   expiry_date: ISODate | null;
-  issuing_jurisdiction: string | null;       // "SD", "MN", "US", or "tribe:<fictional_id>"
+  issuing_jurisdiction: string | null;       // "SD", "MN", "US", or a tribe key (see participating_tribes in 4.3)
   citizenship_verified_marker: boolean | null;  // meaningful for other-state licenses/IDs only
   name: string | null;                       // as printed
   birth_date: ISODate | null;
@@ -215,9 +218,9 @@ interface Application {
 
 Notes:
 
-- Addresses are plain text lines. A line may read like a PO box; the engine treats it as an ordinary address and has no PO box field or logic (owner decision, Q6).
+- All addresses are fictional street addresses (line, city, state, postal code).
 - There is deliberately no field anywhere recording how many nights the applicant sleeps in South Dakota (see 4.2).
-- Name comparison policy (PROPOSAL): case-insensitive, whitespace-collapsed, punctuation-insensitive equality. Nicknames, initials-only, and maiden/married name differences are mismatches in the MVP. Flagged as Q14.
+- Name comparison policy (PROPOSAL): case-insensitive, whitespace-collapsed, punctuation-insensitive equality. Nicknames, initials-only, and maiden/married name differences are mismatches in the MVP. Mismatches are grounds to deny (owner decision, Q14).
 
 ### 3.5 Calendar and activation modes
 
@@ -234,6 +237,7 @@ interface ElectionEntry {
   from: ISODate | null;                // inclusive; null = unbounded
   to: ISODate | null;                  // exclusive; null = unbounded
   election_date: ISODate;
+  registration_deadline: ISODate;      // last day to register for this election (inclusive)
   label: string;
   verified: boolean;                   // always false until owner changes it
 }
@@ -265,6 +269,7 @@ Behavior:
 
 - Default combination (core, with no optional extensions in use): `deny` iff any active, applicable rule returns `fail`; otherwise `approve`. `not_applicable` neither passes nor fails.
 - If the calendar lookup finds no entry for `as_of`, the engine returns `NO_ELECTION_CONFIGURED`. It never guesses, never reuses the last entry, and never falls back to a default. The UI shows a neutral message ("No election date is configured for this date.") and does not count the situation as a player error. In shift generation, a shift whose `shift_date` has no calendar entry fails a data validation test.
+- "Next election" means the next election still open for registration as of the shift date. The calendar entries encode this: an entry's range ends the day after its `registration_deadline` (deadline day inclusive; manager default; no shift falls on a deadline day).
 - If two calendar entries cover `as_of`, the engine returns `OVERLAPPING_CALENDAR_ENTRIES`.
 - Rule evaluation order does not affect the verdict. `violated_rule_ids` is sorted by rule `id` for determinism.
 - The engine looks up the election once per `evaluate` call and passes it to every check via `CheckContext`.
@@ -305,8 +310,8 @@ Every contradiction pattern Part B needs is then expressed by setting field valu
 
 | Layer | What is tested | Examples |
 |---|---|---|
-| Per-rule | Each rule, boundary and negative cases, with fixture applications | R1: born exactly on cutoff date; one day after; birth-date mismatch between documents; R2: SD address, non-SD address, missing address, PO-box-styled SD address (passes); R3: each acceptable document type; each photocopy/original combination; expired tier 1 and tier 2; null expiry passes; `issue_date` of 2025-06-30, 2025-07-01, 2025-07-02; wrong issuer; name mismatch |
-| Calendar | Lookup boundaries; gaps | `as_of` = each shift date in 2.2; June 1, June 2, June 3, June 22 2026; far past; a date past all entries (error); overlapping entries |
+| Per-rule | Each rule, boundary and negative cases, with fixture applications | R1: born exactly on cutoff date; one day after; birth-date mismatch between documents; R2: SD address, non-SD address, missing address, SD-issued ID with matching and non-matching address, out-of-state ID with a different address (passes); R3: each acceptable document type; tribal ID on and off the participating list; each photocopy/original combination; expired tier 1 and tier 2; null expiry passes; `issue_date` of 2025-06-30, 2025-07-01, 2025-07-02; wrong issuer; name mismatch |
+| Calendar | Lookup boundaries; gaps | `as_of` = each shift date in 2.2; May 18, May 19, June 2, June 3, June 8, June 9 2026 (deadline boundaries); far past; a date past all entries (error); overlapping entries |
 | Combination | Multiple simultaneous failures | Fails R1 and R3: `violated_rule_ids` equals both IDs, sorted; passes all: empty |
 | Activation | Sandbox vs calendar | Calendar mode, Rule 3 inactive before its month; sandbox mode ignores `introduced_month` |
 | Conflict (only once extensions are approved) | Precedence, supersession, exceptions, cycles | Higher-precedence permit overrides lower require; superseded rule absent from `results`; supersedes cycle rejected |
@@ -340,8 +345,8 @@ An import-boundary test (or lint rule) fails the build if anything under `engine
 |---|---|---|
 | B1 Prior registration: not registered in another state; listing a prior address cancels it; prior info can update an SD registration (name change, in-state move). Certification under penalty of perjury (citizen; 18 by next election; SD resident; not judged mentally incompetent; not currently serving a felony sentence; authorizes cancellation of previous registration). Overseas citizens (citizen or spouse last domiciled in SD immediately before leaving the US; no domicile/registration/voting elsewhere; otherwise qualified; absentee in last-resided county/precinct). | New optional `Application` sections (`prior_registration`, `certification`, `overseas`); rules whose `applies_to` targets those sections and return `not_applicable` when the section is absent; application variants (overseas) selecting a different rule subset; a verdict that can carry side-effect actions (cancel prior registration, update existing record) beyond approve/deny; boolean attestation fields on a certification document | `not_applicable` result; `applies_to`; optional application sections; verdict object is extensible |
 | B2 Citizenship rules introduced all at once in the March 2026 to April 2026 shift | Several rules sharing one `introduced_month`; calendar activation mode | `introduced_month`; `"calendar"` mode |
-| B3 Progression: Oct 2025 to Nov 2025 start with ID and residency; Feb to Mar 2026 newspaper appears; Mar to Apr 2026 citizenship. Rules later combine, conflict, occasionally contradict; each briefing introduces one new component. | Shift table driving `shift_date` and mode; briefing built from the diff of active rules between consecutive shifts; the optional conflict extensions (3.8); a calendar entry for every shift date (validated; the game ends after the June 3, 2026 shift) | `shifts.json`; extension fields specified; explicit no-election error |
-| B5 Newspaper | Presentation only; reads date from state. No engine involvement. Copy is not written in this document. | Narrative file (B8) |
+| B3 Progression: Oct 2025 to Nov 2025 start with ID and residency; Feb to Mar 2026 newspaper appears (read as the March 1 shift, s06); Mar to Apr 2026 citizenship (s07). Rules later combine, conflict, occasionally contradict; each briefing introduces one new component. | Shift table driving `shift_date` and mode; briefing built from the diff of active rules between consecutive shifts; the optional conflict extensions (3.8); a calendar entry for every shift date (validated; the game ends after the June 3, 2026 shift) | `shifts.json`; extension fields specified; explicit no-election error |
+| B5 Newspaper | Appears on s06 (March 1); its date reads "March 2026" (PROPOSAL, Q28). Presentation only; reads date from state. No engine involvement. Copy is not written in this document. | Narrative file (B8) |
 | B6 Family expenses and moral pressure | Economy ledger with recurring debits; save fields for balance and obligations | Economy section; save v1 has `economy` object |
 | B7 Shutter, fade, tick, versioned saves | Transition state machine in UI; save migrations | Save v1 versioned (sections 6.4 and 6.5) |
 | B8 All narrative text in a single data file | `narrative.json` keyed by id; engine and rules reference text by key only for non-error strings | `error_message` stays in the rule entry; briefing and all other copy go in the narrative file from the MVP onward |
@@ -380,12 +385,12 @@ Precise check specification:
 1. `E = calendar_lookup(as_of).election_date`. If no entry, the engine returns `NO_ELECTION_CONFIGURED` for the whole evaluation (not a rule failure).
 2. `cutoff = E` with the year decreased by 18 (same month and day).
 3. Eligible iff `birth_date <= cutoff`, compared as (year, month, day) tuples. Equality passes: a person who turns 18 on election day is "18 by the election" (owner decision, Q11).
-4. Worked examples with the current table: next election June 2, 2026 gives cutoff 2008-06-02. Born 2008-06-02 passes. Born 2008-06-03 fails. For the June 3, 2026 shift (a date on or after June 2 and before June 23, 2026) the election is June 23, 2026, so the cutoff is 2008-06-23.
+4. Worked examples with the current calendar: for s08 (2026-05-01) the next election is June 2, 2026, so the cutoff is 2008-06-02. Born 2008-06-02 passes; born 2008-06-03 fails. For s09 (2026-06-01) the next election still open for registration is June 23, 2026, so the cutoff is 2008-06-23; s10 (2026-06-03) is the same.
 5. Which birth date is compared: the date on the identity document. The form's declared date and any other document's date must match it; a mismatch is reported under this rule (integrity note below).
 
 No Feb 29 (owner decision, Q11): the game contains no Feb 29 dates. The generator never produces Feb 29 birth dates, and no calendar entry falls on Feb 29. A generator test asserts that no generated document contains a Feb 29 date (3.9).
 
-Integrity note (OPEN, Q14): A5 lists mismatched names, addresses, and dates as discrepancies, but only three rules exist. This draft folds consistency into the rules rather than adding a fourth: R1 covers birth-date agreement across documents, and R3 covers name agreement on the qualifying citizenship document. Address mismatches no longer count (Q6). Whether a name or birth-date mismatch should still be grounds to deny is asked in plain language in Q14.
+Integrity note (RESOLVED, Q14): A5 lists mismatched names, addresses, and dates as discrepancies. Owner decision: name, birth-date, and address mismatches between documents are all grounds to deny. The draft folds consistency into the three rules rather than adding a fourth: R1 covers birth-date agreement across documents, R2 covers address agreement (only for SD-issued IDs, see 4.2), and R3 covers name agreement on the qualifying citizenship document. This applies to the full game, not just the MVP.
 
 ### 4.2 Rule 2: Residency (`R2_RESIDENCY`)
 
@@ -393,9 +398,19 @@ Integrity note (OPEN, Q14): A5 lists mismatched names, addresses, and dates as d
 id: R2_RESIDENCY
 introduced_month: "2025-10"
 applies_to: [application.residency_declaration.address_state,
-             application.residency_declaration.address_line]
+             application.residency_declaration.address_line,
+             application.residency_declaration.address_city,
+             application.residency_declaration.address_postal,
+             application.id_document.issuing_jurisdiction,
+             application.id_document.address_line,
+             application.id_document.address_city,
+             application.id_document.address_postal]
 check: "pass iff residency_declaration.address_line is non-empty
-        AND residency_declaration.address_state == 'SD'"
+        AND residency_declaration.address_state == 'SD'
+        AND (id_document is null
+             OR id_document.issuing_jurisdiction != 'SD'
+             OR declaration address matches id_document address after normalization
+                (line, city, postal))"
 error_message: "Residency declaration: {condition}."
 source: { citation: "UNSOURCED (owner: SD codified law, verify citation)" }
 verified: false
@@ -405,16 +420,19 @@ Condition strings:
 
 - "address state is not South Dakota"
 - "no address listed"
+- "address differs between documents"
 
-Owner requirement: must reside in South Dakota and list a South Dakota address. Owner decision (Q6): the PO box mechanic is dropped. R2 passes iff the residency declaration lists an address whose state is South Dakota, and fails otherwise. There is no address-agreement clause and no PO box logic. PO box style addresses may appear in generated data as ordinary SD addresses and pass like any other SD address.
+Owner requirement: must reside in South Dakota and list a South Dakota address. All addresses are fictional street addresses.
 
-Subtly reflecting that the "usually sleeps at least 30 consecutive days per year in South Dakota" requirement is not enforced in practice (no lesson stated):
+Normalization (PROPOSAL): case-folded, whitespace collapsed, punctuation removed, common street-suffix abbreviations expanded.
 
-- The residency declaration form has no field for nights, days, or duration. The form is a name, an address, a state, and a signature line.
-- The auditor's desk has no instrument for it: the inspection tools (magnifier, date lookup, election display, rule letter) have nothing that could check it.
-- Neither the stamp reasons nor the error messages ever mention it, and no applicant is ever generated as failing it, so the engine has no condition for it.
-- The briefing letter does not quote the 30-day clause (owner decision, Q7). No sentence in the game comments on the gap.
-- PO box style addresses appear in generated data and pass like any SD address.
+Why the address match applies only to SD-issued IDs: Rule 3 accepts out-of-state licenses, and a new resident's out-of-state license naturally shows an old address. Comparing those would make the out-of-state document deny nearly everyone who uses it. Confirmation requested in Q32.
+
+The "usually sleeps at least 30 consecutive days per year in South Dakota" point (PROPOSAL pending owner approval, Q23):
+
+- One scripted applicant, placed in a mid-game shift (for example s05), says a single line of small talk making clear they spend most of the year outside South Dakota. Every document is valid, and the correct decision is approve. Nothing in the game comments on it.
+- This is the only place the 30-day point appears. If the owner rejects the proposal, the point is dropped as a design goal. The line itself is supplied by the owner and lives in the narrative file (B8).
+- The briefing letter does not quote the 30-day clause (owner decision, Q7). The residency form has no field for nights or duration.
 
 ### 4.3 Rule 3: Proof of citizenship (`R3_CITIZENSHIP`)
 
@@ -464,9 +482,9 @@ tier1(d) :=
      || ( (d.type == "other_state_drivers_license"
            || d.type == "other_state_nondriver_id")
           && d.issuing_jurisdiction != "SD"
-          && d.citizenship_verified_marker == true )              // Q5 (PENDING)
+          && d.citizenship_verified_marker == true )              // drafter default (Q5)
      || ( d.type == "tribal_id"
-          && d.issuing_jurisdiction startsWith "tribe:" )         // Q5 (PENDING)
+          && d.issuing_jurisdiction in participating_tribes )     // Q5
      )
 
 // Originals and photocopies are both accepted for tier 2 (Q3),
@@ -484,9 +502,13 @@ Documents without an expiry date (for example birth certificates) have `expiry_d
 
 Condition selection when R3 fails (first match wins, for the document closest to qualifying): a photocopy of a tier-1 type gives "photocopy presented where original required"; an otherwise qualifying document with a non-matching name gives "name differs between documents"; an otherwise qualifying expired document of either tier gives "document expired"; anything else gives "no qualifying document presented".
 
-Constants (`2025-07-01`, the tier lists) live in the rule entry's data, not in engine code.
+Constants (`2025-07-01`, the tier lists, and `participating_tribes`) are parameters inside the rule's `check` spec, not new rule fields and not engine code. `participating_tribes` is printed in the briefing letter via the narrative file. Tribe names are supplied by the owner (Q31).
 
 Important consequence for gameplay (not stated in-game): a South Dakota license issued before July 1, 2025 does not satisfy tier 1; the applicant must supply a different document. This arises purely from the check and is left for the player to notice.
+
+Source for the tribal ID default (owner-designated; the owner pasted the article text): South Dakota Searchlight, January 31, 2024, https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ . As reported there: a bill would allow members of federally recognized tribes to register to vote using a tribal ID, if their tribe enters into an agreement with the Secretary of State. At that time tribal IDs could be used as ID at the polls but not to register. The bill passed the Senate State Affairs Committee unanimously and was headed to the Senate consent calendar. The article does not say whether the bill became law, and gives no bill number. Applying this to SB 175's tribal ID item is a game default; whether the agreement requirement applies to that item is unverified.
+
+Game rule (applied as a default): a tribal ID satisfies tier 1 only if its issuing tribe is on a `participating_tribes` list kept in the rule's data and printed in the briefing letter, and the ID is an original, unexpired, and name-matching.
 
 Decisions and open points for Rule 3 (details in section 11):
 
@@ -494,7 +516,7 @@ Decisions and open points for Rule 3 (details in section 11):
 |---|---|---|
 | Q2 | "Issued after July 1, 2025" | RESOLVED: on or after (`issue_date >= 2025-07-01`). Owner-stated rationale, unverified: the law requiring citizenship status to be displayed on SD licenses took effect July 1, 2025, so a license issued that day complies. |
 | Q3 | Original tier-2 documents | RESOLVED: accepted. |
-| Q5 | Tribal ID validity; what counts as "indicating citizenship has been verified" on an out-of-state ID | PENDING: owner-designated source (South Dakota Searchlight, https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/) not yet read; site blocked from build environment. Defaults stand: any fictional `tribe:*` key; `citizenship_verified_marker == true`. |
+| Q5 | Tribal ID validity; what counts as "indicating citizenship has been verified" on an out-of-state ID | RESOLVED for tribal ID (source read): participating-tribes rule above. The out-of-state marker remains the drafter default (`citizenship_verified_marker == true`); the article does not address it. |
 | Q8 | Expired documents | RESOLVED: expired documents satisfy no requirement, either tier; null expiry passes. |
 | Q9 | "Any other documentation permitted under the applicable federal provision" | RESOLVED: not modeled; tier 2 is exactly four document types. |
 
@@ -514,25 +536,27 @@ Federal cross-reference: the owner's note says the federal reference appears to 
 
 Data file `calendar.json`. Rules, notes, and in-game displays (including the desk's analog "Next election" display) read from it. No election date appears in rule code.
 
-| In-game date range | Next election | Label | `verified` |
-|---|---|---|---|
-| Before June 2, 2026 | June 2, 2026 | statewide primary and municipal election | false |
-| June 2, 2026 to June 23, 2026 | June 23, 2026 | runoff | false |
+"Next election" means the next election still open for registration as of the shift date (Q27, resolved). Every entry is `verified: false`.
+
+| In-game date range | Next election | Label | Registration deadline | `verified` |
+|---|---|---|---|---|
+| Before May 19, 2026 | June 2, 2026 | statewide primary and municipal election | May 18, 2026 | false |
+| May 19, 2026 to before June 3, 2026 | June 23, 2026 | municipal runoff, if required | June 8, 2026 | false |
+| June 3, 2026 to before June 9, 2026 | June 23, 2026 | municipal runoff | June 8, 2026 | false |
 
 ```json
 [
-  { "from": null,         "to": "2026-06-02", "election_date": "2026-06-02", "label": "statewide primary and municipal election", "verified": false },
-  { "from": "2026-06-02", "to": "2026-06-23", "election_date": "2026-06-23", "label": "runoff",             "verified": false }
+  { "from": null,         "to": "2026-05-19", "election_date": "2026-06-02", "label": "statewide primary and municipal election", "registration_deadline": "2026-05-18", "verified": false },
+  { "from": "2026-05-19", "to": "2026-06-03", "election_date": "2026-06-23", "label": "municipal runoff, if required",            "registration_deadline": "2026-06-08", "verified": false },
+  { "from": "2026-06-03", "to": "2026-06-09", "election_date": "2026-06-23", "label": "municipal runoff",                         "registration_deadline": "2026-06-08", "verified": false }
 ]
 ```
 
-Interval convention: `from` inclusive, `to` exclusive, so June 2, 2026 falls in the second row, matching the owner's table where "June 2 to June 23" begins on June 2. No shift is dated June 23 or later (2.2, Q12), and a date past every entry returns `NO_ELECTION_CONFIGURED`.
+Interval convention: `from` inclusive, `to` exclusive. The deadline day is inclusive (manager default), so each range ends the day after its deadline. No shift falls on a deadline day. A date past every entry (June 9, 2026 or later) returns `NO_ELECTION_CONFIGURED`; no shift is dated there (2.2).
 
 No November 3, 2026 general election entry exists: the game ends after the June 3, 2026 shift (owner decision, Q15).
 
-Open (N1, Q27): whether "next election" should mean "next election still open for registration". Default: unchanged, so the June 1 shift shows June 2, 2026.
-
-The election display on the desk reads: "Next election: <label>, <date>" (for example "Next election: statewide primary and municipal election, June 2, 2026"). Label text comes from the calendar entry.
+The election display on the desk shows the next election, its label, and the registration deadline, for example "Next election: statewide primary and municipal election, June 2, 2026. Registration closes: May 18, 2026". All text comes from the calendar entry.
 
 ---
 
@@ -653,7 +677,7 @@ No claim is made that any of these match a source palette. The verification chec
 
 Source page (owner-supplied): https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file `File:Flag_of_Sioux_Falls,_South_Dakota.svg`). The owner supplied the Commons permission notice, which reads: "This work has been released into the public domain by its author, Max Rabkin. This applies worldwide. In some countries this may not be legally possible; if so: Max Rabkin grants anyone the right to use this work for any purpose, without any conditions, unless such conditions are required by law."
 
-The owner verified the license on 2026-10-26; the drafter only transcribed it. Status: approved for use, no attribution required. The placeholder pennant is no longer needed and is removed from the manifest. The SVG is committed to the repository once (under assets/, recorded in the manifest); the build never fetches it, because this environment's network policy blocks Wikimedia. One final-release check is listed in section 13 (whether the author's release covers the underlying flag design). This document does not describe the flag's design or colors.
+The owner verified the license on 2026-10-26; the drafter only transcribed it. Status: approved for use, no attribution required. The placeholder pennant is no longer needed and is removed from the manifest. The SVG is committed to the repository once (under assets/, recorded in the manifest); the build never fetches it, because this environment's network policy blocks Wikimedia. This document does not describe the flag's design or colors.
 
 ### 7.4 Audio (MVP)
 
@@ -733,13 +757,13 @@ Manifest fields for each real asset when added: id, file path, type, source URL 
 
 ## 10. Verification checklist
 
-Every item below is `verified: false` except the desk flag license row, which the owner verified on 2026-10-26. Only the owner may change a value. "Source given" is where the claim came from (the owner's brief or later owner answers). "Candidate source" is a URL if one exists, else UNSOURCED. The only URLs are ones the owner supplied; the Searchlight article has not been read.
+Every item below is `verified: false` except the desk flag license row, which the owner verified on 2026-10-26. Only the owner may change a value. "Source given" is where the claim came from (the owner's brief or later owner answers). "Candidate source" is a URL if one exists, else UNSOURCED. The only URLs are ones the owner supplied (the flag page and the Searchlight article, whose text the owner pasted).
 
 | # | Item | Claim as stated | Source given | Candidate source | Verified |
 |---|---|---|---|---|---|
 | 1 | Rule 1 citation | Must be 18 or older by the next election; 17-year-olds who turn 18 by that election are eligible | Owner brief ("SD codified law, verify citation") | UNSOURCED | false |
 | 2 | Rule 2 citation | Must reside in SD and list an SD address | Owner brief ("SD codified law, verify citation") | UNSOURCED | false |
-| 3 | Residency "30 consecutive days" claim | Residency standard involves usually sleeping at least 30 consecutive days per year in SD | Owner brief (as the standard the game subtly shows is unenforced) | UNSOURCED | false |
+| 3 | Residency "30 consecutive days" claim | Residency standard involves usually sleeping at least 30 consecutive days per year in SD | Owner brief | UNSOURCED | false |
 | 4 | "Not enforced in practice" claim | The 30-day requirement is not enforced in practice | Owner brief | UNSOURCED | false |
 | 5 | Rule 3 / SB 175 statutory text | The three tier-1 items and five tier-2 items as quoted in 4.3 (the fifth tier-2 item is not modeled in the game; owner decision, Q9) | Owner-supplied quote "as enacted by SB 175, 2026 session" | UNSOURCED | false |
 | 6 | SB 175 identity | SB 175 is the 2026 South Dakota SAVE Act | Owner brief | UNSOURCED | false |
@@ -749,49 +773,54 @@ Every item below is `verified: false` except the desk flag license row, which th
 | 10 | July 1, 2025 rationale | Owner-stated: the law requiring citizenship status to be displayed on SD licenses took effect July 1, 2025, so a license issued that day complies | Owner statement | UNSOURCED | false |
 | 11 | 42 C.F.R. 436.407 cross-reference | Federal provision for "other documentation" appears to be this Medicaid regulation, not a voter registration rule. Out of scope for gameplay (owner decision); citation still unverified | Owner note (flagged as uncertain) | UNSOURCED | false |
 | 12 | Correct federal citation | The right federal reference for "applicable federal provision" is undetermined. Out of scope for gameplay (owner decision); citation still unverified | Owner brief | UNSOURCED | false |
-| 13 | Tribal ID validity | Any tribe's ID qualifies; expiry treatment (defaults pending the owner-designated source) | Drafter default | https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ (owner-designated; NOT YET READ, site blocked from build environment) | false |
-| 14 | Out-of-state ID marker | What "indicating citizenship has been verified" looks like (default pending the owner-designated source) | Drafter default | https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ (owner-designated; NOT YET READ, site blocked from build environment) | false |
-| 15 | Searchlight article (owner-designated source for tribal and out-of-state ID rules) | Content not known to the drafter; not summarized | Owner | https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ (NOT YET READ) | false |
-| 16 | Tier-2 originals | Original (non-photocopy) tier-2 documents are accepted | Owner decision (Q3) | UNSOURCED | false |
-| 17 | Expired documents | Expired documents satisfy no documentation requirement (tier 1 and tier 2); a null expiry date passes | Owner decision (Q8) | UNSOURCED | false |
-| 18 | PO box style addresses | An address written as a PO box passes Rule 2 like any SD address; no special handling | Owner decision (Q6) | UNSOURCED | false |
-| 19 | Age cutoff inclusivity | Turning 18 on election day counts as 18 by the election | Owner decision (Q11) | UNSOURCED | false |
-| 20 | No Feb 29 in game | The generator never produces Feb 29 birth dates; no calendar entry falls on Feb 29 | Owner decision (Q11) | n/a (design choice) | false |
-| 21 | Calendar entry 1: date | June 2, 2026 election | Owner brief | UNSOURCED | false |
-| 22 | Calendar entry 1: label | June 2, 2026 is a statewide primary and municipal election | Owner-stated; source not yet recorded | UNSOURCED | false |
-| 23 | Calendar entry 1: range | Applies before June 2, 2026 | Owner brief | UNSOURCED | false |
-| 24 | Calendar entry 2: date | June 23, 2026 election | Owner brief | UNSOURCED | false |
-| 25 | Calendar entry 2: label | June 23, 2026 is a runoff | Owner brief | UNSOURCED | false |
-| 26 | Calendar entry 2: range | Applies June 2 to June 23, 2026 | Owner brief | UNSOURCED | false |
-| 27 | Registration deadline | Owner-stated: voter registration closes 15 days before an election (so June 8, 2026 for the June 23 runoff) | Owner statement | UNSOURCED | false |
-| 28 | Nov 3, 2026 general election | Not in table; the game ends after the June 3, 2026 shift | Owner decision (Q15) | UNSOURCED | false |
-| 29 | Start date of game | October 2025 | Owner brief | n/a (design choice) | false |
-| 30 | Shift dates | First of each month from October 2025 through June 2026, plus a final shift on June 3, 2026 (10 shifts) | Owner decision (Q4) | n/a (design choice) | false |
-| 31 | Governor name (Part B) | Larry Rhoden is the governor | Owner brief (owner-given) | UNSOURCED | false |
-| 32 | Signing date (Part B) | SB 175 signed March 26, 2026 | Owner brief (owner-given) | UNSOURCED | false |
-| 33 | SB 175 effective date | Effective date of SB 175 (N3) | Not given; manager inference only | UNSOURCED | false |
-| 34 | Runoff registration | Whether new voters can register for the June 23 runoff, or only those registered for June 2 (N4) | Not given | UNSOURCED | false |
-| 35 | Newspaper date (Part B) | March 26, 2026 (newspaper dateline) | Owner brief (owner-given) | UNSOURCED | false |
-| 36 | B12 runoff: election-night margin | Two-vote margin on election night | Owner brief (owner-given) | UNSOURCED | false |
-| 37 | B12 runoff: recount margin | Four-vote margin after the recount | Owner brief (owner-given) | UNSOURCED | false |
-| 38 | B12 runoff: winner | Identity of the winner | Not supplied by owner | UNSOURCED | false |
-| 39 | Sioux Falls mayoral runoff (owner-given) | Sioux Falls mayoral runoff, June 23, 2026, decided by four votes after the recount, following a two-vote margin on election night | Owner brief (B12) | UNSOURCED | false |
-| 40 | B12 title card source | Title card must cite official canvass results | Owner brief (B12); citation not yet supplied | UNSOURCED | false |
-| 41 | Newspaper sidebar premise | County auditors said the new law will cause "chaos" | Owner brief (B5 sidebar) | UNSOURCED | false |
-| 42 | Dakota Scout / Dakota Snout | Dakota Scout is a real South Dakota outlet that the Dakota Snout parodies (owner-given) | Owner brief (B5) | UNSOURCED | false |
-| 43 | Desk flag: source file | Flag image from https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | Owner-supplied page | Same URL; license tag not yet recorded | false |
-| 44 | Desk flag: license | Commons permission notice (text as supplied by owner): "This work has been released into the public domain by its author, Max Rabkin. This applies worldwide. In some countries this may not be legally possible; if so: Max Rabkin grants anyone the right to use this work for any purpose, without any conditions, unless such conditions are required by law." No attribution required | Owner (Commons permission notice) | Commons file page (owner-supplied) | true (verified by owner, 2026-10-26) |
-| 45 | Desk flag: design coverage | Whether the file author's public-domain release covers the underlying flag design (final-release check, section 13) | Manager flag | UNSOURCED | false |
-| 46 | Desk flag: identity | The file shows the official Sioux Falls flag | Owner brief | UNSOURCED | false |
-| 47 | Palette inspiration | Palette is in the spirit of the City of Montgomery, Alabama | Owner brief | UNSOURCED (no hex mapping asserted) | false |
-| 48 | Jurisdiction | Minnehaha County, SD voter registration is handled by a county auditor | Owner brief | UNSOURCED | false |
-| 49 | Auditor role in registration | The county auditor reviews registration applications at a service window | Owner brief premise | UNSOURCED | false |
-| 50 | Briefing letter header | "Office of the South Dakota Secretary of State" as the sender | Owner brief | UNSOURCED | false |
-| 51 | B1 certification items | Citizen; 18 by next election; SD resident; not judged mentally incompetent; not serving a felony sentence; authorizes cancellation of prior registration | Owner brief | UNSOURCED | false |
-| 52 | B1 overseas-citizen provisions | As summarized in 3.11 | Owner brief | UNSOURCED | false |
-| 53 | B1 prior-registration provisions | Not registered in another state; listing a prior address cancels it; prior info can update an SD registration | Owner brief | UNSOURCED | false |
-| 54 | Real-world effects being satirized | The "real-world effects" of SB 175 and related rules on SD residents | Owner brief | UNSOURCED | false |
-| 55 | Candidate citations added by drafter | None; the only candidate URLs are owner-supplied (flag page, and the Searchlight article, which is not read) | n/a | n/a | false |
+| 13 | Tribal ID rule | A tribal ID satisfies tier 1 only if its issuing tribe is on a `participating_tribes` list (printed in the briefing letter) and the ID is an original, unexpired, and name-matching | Owner-designated source (South Dakota Searchlight, Jan 31, 2024), applied as a game default | https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ (text pasted by owner) | false |
+| 14 | Out-of-state ID marker | What "indicating citizenship has been verified" looks like. Drafter default; the Searchlight article does not address it | Drafter default | UNSOURCED | false |
+| 15 | Searchlight article facts | A bill would allow members of federally recognized tribes to register to vote using a tribal ID if their tribe enters into an agreement with the Secretary of State; tribal IDs could then be used as ID at the polls but not to register; the bill passed the Senate State Affairs Committee unanimously and was headed to the Senate consent calendar. The article does not say whether it became law and gives no bill number | Owner-pasted article text | https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ | false |
+| 16 | Tribal ID bill enacted | Whether that bill was enacted | Not stated in the article | UNSOURCED | false |
+| 17 | Tribe agreement vs SB 175 | Whether the tribe-agreement requirement applies to SB 175's proof-of-citizenship tribal ID item | Not stated | UNSOURCED | false |
+| 18 | Tribal ID bill number | Bill number for the tribal ID bill | Not given in the article | UNSOURCED | false |
+| 19 | Tier-2 originals | Original (non-photocopy) tier-2 documents are accepted | Owner decision (Q3) | UNSOURCED | false |
+| 20 | Expired documents | Expired documents satisfy no documentation requirement (tier 1 and tier 2); a null expiry date passes | Owner decision (Q8) | UNSOURCED | false |
+| 21 | Address match (SD-issued IDs) | Name, birth-date and address mismatches are grounds to deny; the address match applies only when the ID is SD-issued | Owner decision (Q14); SD-issued scoping is a manager default (Q32) | UNSOURCED | false |
+| 22 | Age cutoff inclusivity | Turning 18 on election day counts as 18 by the election | Owner decision (Q11) | UNSOURCED | false |
+| 23 | No Feb 29 in game | The generator never produces Feb 29 birth dates; no calendar entry falls on Feb 29 | Owner decision (Q11) | n/a (design choice) | false |
+| 24 | Calendar entry 1: date | June 2, 2026 election | Owner brief | UNSOURCED | false |
+| 25 | Calendar entry 1: label | June 2, 2026 is a statewide primary and municipal election | Owner-stated; source not yet recorded | UNSOURCED | false |
+| 26 | Calendar entry 1: range | Applies before May 19, 2026 (registration for June 2 still open) | Owner and manager (Q27) | UNSOURCED | false |
+| 27 | Calendar entry 2: date | June 23, 2026 runoff election | Owner brief | UNSOURCED | false |
+| 28 | Calendar entry 2: label | May 19 to before June 3, 2026 reads "municipal runoff, if required" | Owner and manager (Q27) | UNSOURCED | false |
+| 29 | Calendar entry 2: range | Applies May 19, 2026 to before June 3, 2026 | Owner and manager (Q27) | UNSOURCED | false |
+| 30 | Calendar entry 3: label and range | June 3, 2026 to before June 9, 2026 reads "municipal runoff" | Owner and manager (Q27) | UNSOURCED | false |
+| 31 | Registration deadlines | Owner-stated: May 18, 2026 (for June 2) and June 8, 2026 (for June 23), each 15 days before the election | Owner statement | UNSOURCED | false |
+| 32 | Runoff date known early | The runoff date was known before the June 2 results, so an auditor on June 1 could cite it | Manager inference | UNSOURCED | false |
+| 33 | Nov 3, 2026 general election | Not in table; the game ends after the June 3, 2026 shift | Owner decision (Q15) | UNSOURCED | false |
+| 34 | Start date of game | October 2025 | Owner brief | n/a (design choice) | false |
+| 35 | Shift dates | First of each month from October 2025 through June 2026, plus a final shift on June 3, 2026 (10 shifts) | Owner decision (Q4) | n/a (design choice) | false |
+| 36 | Governor name (Part B) | Larry Rhoden is the governor | Owner brief (owner-given) | UNSOURCED | false |
+| 37 | Signing date (Part B) | SB 175 signed March 26, 2026 | Owner brief (owner-given) | UNSOURCED | false |
+| 38 | SB 175 effective date | SB 175 carried an emergency clause, so April 2026 enforcement is accurate | Owner-confirmed; source not recorded | UNSOURCED | false |
+| 39 | Runoff registration | Voters can register for the June 23 runoff if they register by its deadline | Owner-confirmed; source not recorded | UNSOURCED | false |
+| 40 | Newspaper date (Part B) | The paper's date reads "March 2026" (earlier brief: March 26, 2026); it appears on the March 1 shift (s06), a manager recommendation the owner may override (Q28) | Owner answer; manager recommendation | UNSOURCED | false |
+| 41 | B12 runoff: election-night margin | Two-vote margin on election night | Owner brief (owner-given) | UNSOURCED | false |
+| 42 | B12 runoff: recount margin | Four-vote margin after the recount | Owner brief (owner-given) | UNSOURCED | false |
+| 43 | B12 runoff: winner | Identity of the winner | Not supplied by owner | UNSOURCED | false |
+| 44 | Sioux Falls mayoral runoff (owner-given) | Sioux Falls mayoral runoff, June 23, 2026, decided by four votes after the recount, following a two-vote margin on election night | Owner brief (B12) | UNSOURCED | false |
+| 45 | B12 title card source | Title card must cite official canvass results | Owner brief (B12); citation not yet supplied | UNSOURCED | false |
+| 46 | Newspaper sidebar premise | County auditors said the new law will cause "chaos" | Owner brief (B5 sidebar) | UNSOURCED | false |
+| 47 | Dakota Scout / Dakota Snout | Dakota Scout is a real South Dakota outlet that the Dakota Snout parodies (owner-given) | Owner brief (B5) | UNSOURCED | false |
+| 48 | Desk flag: source file | Flag image from https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | Owner-supplied page | Same URL | false |
+| 49 | Desk flag: license | Commons permission notice (text as supplied by owner): "This work has been released into the public domain by its author, Max Rabkin. This applies worldwide. In some countries this may not be legally possible; if so: Max Rabkin grants anyone the right to use this work for any purpose, without any conditions, unless such conditions are required by law." No attribution required | Owner (Commons permission notice) | Commons file page (owner-supplied) | true (verified by owner, 2026-10-26) |
+| 50 | Desk flag: design coverage | Closed by owner, 2026-10-26 | Owner | n/a | closed by owner, 2026-10-26 |
+| 51 | Desk flag: identity | The file shows the official Sioux Falls flag | Owner brief | UNSOURCED | false |
+| 52 | Palette inspiration | Palette is in the spirit of the City of Montgomery, Alabama | Owner brief | UNSOURCED (no hex mapping asserted) | false |
+| 53 | Jurisdiction | Minnehaha County, SD voter registration is handled by a county auditor | Owner brief | UNSOURCED | false |
+| 54 | Auditor role in registration | The county auditor reviews registration applications at a service window | Owner brief premise | UNSOURCED | false |
+| 55 | Briefing letter header | "Office of the South Dakota Secretary of State" as the sender | Owner brief | UNSOURCED | false |
+| 56 | B1 certification items | Citizen; 18 by next election; SD resident; not judged mentally incompetent; not serving a felony sentence; authorizes cancellation of prior registration | Owner brief | UNSOURCED | false |
+| 57 | B1 overseas-citizen provisions | As summarized in 3.11 | Owner brief | UNSOURCED | false |
+| 58 | B1 prior-registration provisions | Not registered in another state; listing a prior address cancels it; prior info can update an SD registration | Owner brief | UNSOURCED | false |
+| 59 | Real-world effects being satirized | The "real-world effects" of SB 175 and related rules on SD residents | Owner brief | UNSOURCED | false |
+| 60 | Candidate citations added by drafter | None; the only candidate URLs are owner-supplied (flag page, Searchlight article) | n/a | n/a | false |
 
 Items in this table are claims the game may rely on or imply. The jurisdiction, auditor-role, and real-world-effects rows are listed because the document cannot trace them to a source. The B12 winner row is intentionally unfilled (not supplied by owner); the drafter does not invent it.
 
@@ -807,8 +836,8 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 2. **"Issued after July 1, 2025." RESOLVED (owner decision).** The cutoff is on or after July 1, 2025 (`issue_date >= "2025-07-01"`). Owner-stated rationale, unverified: the law requiring citizenship status to be displayed on SD licenses took effect July 1, 2025, so a license issued that day complies. Recorded as its own checklist row.
 3. **Original tier-2 documents. RESOLVED (owner decision).** Original tier-2 documents (e.g., an original passport) are acceptable.
 4. **Shift dates. RESOLVED (owner decision).** Every shift is dated the first of the month, except the final shift, which is June 3, 2026. Ten shifts: Oct 1 2025, Nov 1, Dec 1, Jan 1 2026, Feb 1, Mar 1, Apr 1, May 1, Jun 1, Jun 3. The game ends after the June 3 shift: the ending cutscene plays, then the player returns to the main menu. See 2.2.
-5. **Tribal ID and out-of-state markers. PENDING: owner-designated source not yet read (site blocked from build environment).** The owner named South Dakota Searchlight, https://southdakotasearchlight.com/2024/01/31/sd-legislature-native-american-voter-registration-tribal-identification/ . The article has not been read and nothing in this document summarizes it. Current defaults stand: any fictional tribe key `tribe:*` is valid; an out-of-state ID qualifies when `citizenship_verified_marker == true`.
-6. **PO box and address agreement. RESOLVED (owner decision).** The PO box mechanic is dropped. R2 passes iff the residency declaration lists an address whose state is South Dakota. Generated data may contain PO box style addresses as ordinary SD addresses with no special handling. Address agreement across documents is no longer checked.
+5. **Tribal ID and out-of-state markers. RESOLVED for tribal ID (source read); out-of-state marker remains the drafter default.** The owner pasted the text of the South Dakota Searchlight article (January 31, 2024). Rule applied as a default: a tribal ID satisfies tier 1 only if its issuing tribe is on a `participating_tribes` list in the rule's data (printed in the briefing letter), and the ID is original, unexpired, and name-matching. Facts recorded in 4.3. The article does not address the out-of-state marker; the default stands (`citizenship_verified_marker == true`).
+6. **Address handling. RESOLVED (owner decision).** All addresses are fictional street addresses. R2 passes iff the declaration lists an SD address and, when the ID is SD-issued, the addresses match after normalization (4.2, Q14).
 7. **30-day clause in the briefing letter. RESOLVED (owner decision).** The letter does not quote the 30-day clause.
 8. **Expired documents. RESOLVED (owner decision).** Expired documents do not satisfy any documentation requirement, tier 1 or tier 2. Documents without an expiry date (e.g., birth certificates) have `expiry_date: null` and pass.
 9. **Federal "other documentation" item. RESOLVED (owner decision).** The federal provision is not modeled. `other_federal_documentation` and `federal_listed` are removed; tier 2 is exactly four document types.
@@ -816,7 +845,7 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 11. **Age edge cases. RESOLVED (owner decision).** Turning 18 on election day is eligible. There is no Feb 29 in the game: the generator never produces Feb 29 birth dates and no calendar entry falls on Feb 29.
 12. **Calendar boundaries. RESOLVED.** No shift is dated June 23 (see Q4).
 13. **Label for June 2, 2026. RESOLVED (owner-stated, still unverified against a source).** The owner says June 2, 2026 was also the statewide primary. The calendar label is "statewide primary and municipal election", with `verified: false`.
-14. **Consistency checks. OPEN.** Your A5 list says documents can disagree with each other (a different name or birth date on two documents). Should a name or birth-date mismatch between documents still be grounds to deny? Default: yes for name and birth date, handled inside R1 (birth date) and R3 (name). Address mismatches no longer count, per your Q6 answer. This applies to the full game, not just the MVP.
+14. **Consistency checks. RESOLVED (owner decision).** Name, birth-date and address mismatches between documents are grounds to deny: birth date in R1, address in R2, name in R3. Address matching applies only when the ID is SD-issued (confirmation requested, Q32). This applies to the full game, not just the MVP.
 
 ### Calendar and registration scope
 
@@ -825,7 +854,7 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 
 ### Assets and licensing
 
-17. **Desk flag license. RESOLVED (owner-verified, 2026-10-26).** The owner supplied the Commons permission notice, a public-domain release by the file author. Recorded in the manifest and checklist; approved for use; the placeholder pennant is removed. The follow-up about the underlying design is in section 13.
+17. **Desk flag license. RESOLVED (owner-verified, 2026-10-26).** The owner supplied the Commons permission notice, a public-domain release by the file author. Recorded in the manifest and checklist; approved for use. Closed by owner, 2026-10-26.
 
 ### Source text
 
@@ -837,17 +866,22 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 20. **Causation reading. RESOLVED.** The ending must avoid real names. Binding names policy in 1.3.
 21. **Core-edit boundary. RESOLVED (manager default; owner may override).** Most rules are pure data. Occasionally a future rule needs a new kind of comparison the engine doesn't support yet (e.g. "within 30 days of the election"). Default: that rule may include a small self-contained function, and a comparison is only added to the engine itself once two or more rules need it.
 22. **Conflict extensions. RESOLVED (manager default; owner may override).** Later rules will sometimes contradict earlier ones (e.g. a document accepted last month is no longer accepted). The doc proposes optional fields (3.8) so a new rule can say which rule it overrides, instead of rewriting old rules. Default: keep these as a plan and build them only when the first contradicting rule is added in Part B.
-23. **Tone check on the 30-day gap. RESOLVED.** Removing the PO box mechanic does not change the 30-day point. It is still shown through absence (no form field, no tool), and PO box addresses still pass.
+23. **30-day point. OPEN (PROPOSAL pending owner approval).** One scripted applicant, placed in a mid-game shift, says a single line of small talk making clear they spend most of the year outside South Dakota. Every document is valid and the correct decision is approve. Nothing comments on it. This is the only place the 30-day point appears; if the owner rejects it, the point is dropped as a design goal. The line itself is supplied by the owner.
 24. **Parody framing and employer separation. RESOLVED.** The owner states the project has nothing to do with their employer. The credit-line suggestion is removed.
 25. **Seal and flag as government symbols. RESOLVED.** No "fictional" marker. The real seal is never used.
-26. **Applicant fairness in generation. RESOLVED.** Confirmed: fictional applicants are not built from stereotypes of real groups, and tribal ID entries use fictional tribe keys.
+26. **Applicant fairness in generation. RESOLVED.** Confirmed: fictional applicants are not built from stereotypes of real groups. Tribe names follow the owner-supplied list (Q31).
 
 ### New questions (v2)
 
-27. **N1. June 1 shift vs the registration deadline. OPEN.** If registration closes 15 days before an election (the owner's statement), then on June 1 the June 2 election is already closed, and the first election a June 1 registrant could vote in is the June 23 runoff. Should the calendar's "next election" mean "next election still open for registration"? If so, from May 18 (the June 2 deadline) the next election is June 23, the June 1 shift's age cutoff becomes 2008-06-23, and the display reads "June 23, 2026". Default: unchanged until the owner answers.
-28. **N2. Newspaper date vs shift date. OPEN.** B3/B5 put the newspaper on the Feb to Mar shift, which is now dated February 1, 2026, but the paper is dated March 26, 2026. Should it move to the March 1 shift (still dated in the future), to the April 1 shift, or should the paper's date change?
-29. **N3. SB 175 effective date. OPEN (manager inference, unsourced).** South Dakota laws commonly take effect July 1 unless they carry an emergency clause. If SB 175 was signed March 26, 2026 without one, enforcing it in April 2026 would be a dramatized timeline. Should the game keep April, and should the effective date go on the checklist? (Checklist row added: UNSOURCED.)
-30. **N4. Runoff registration. OPEN.** Can new voters register for the June 23 runoff at all, or only those registered for June 2? The answer decides whether the June 3 shift processes runoff registrations. (Checklist row added: UNSOURCED.)
+27. **N1. Registration deadline vs the June 1 shift. RESOLVED (owner + manager recommendation).** "Next election" means the next election still open for registration as of the shift date. Calendar entries carry `registration_deadline` (deadline day inclusive). From May 19 the next election is June 23, so s09 (June 1) shows June 23, 2026 ("municipal runoff, if required") with age cutoff 2008-06-23. See section 5.
+28. **N2. Newspaper date vs shift date. RESOLVED (PROPOSAL: manager recommendation; owner may override).** The paper's date reads "March 2026", not "March 26, 2026". It appears on the March 1 shift (s06), so its month matches the in-game month. Citizenship enforcement then starts on the next shift, April 1 (s07), keeping B3's "immediately after". B3's "Feb to Mar shift" is read as the March 1 shift.
+29. **N3. SB 175 effective date. RESOLVED (owner-confirmed; source not recorded).** The owner states SB 175 carried an emergency clause, so April 2026 enforcement is accurate. Checklist row stays `verified: false`.
+30. **N4. Runoff registration. RESOLVED (owner-confirmed; source not recorded).** Voters can register for the runoff if they register by its deadline. The June 3 shift therefore processes runoff registrations. Checklist row stays `verified: false`.
+
+### New questions (v3)
+
+31. **Tribe names. OPEN.** Should the participating-tribes list use real federally recognized tribe names, or in-game names you supply? Under the names policy, builders will not invent tribe names.
+32. **Address matching scope. OPEN.** Address matching applies only when the ID is SD-issued, so a new resident's out-of-state license isn't an automatic deny. Confirm.
 
 ---
 
@@ -864,6 +898,9 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 | 2026-10-26 | v2 | Opus reviewer | Owner answered Q1-Q26; revision v2 requested (owner decisions, names policy, legal-review section, new questions N1-N4) | — |
 | 2026-10-26 | v2 | Sonnet drafter | Revision v2 | build-time fetch; design-rights phrasing |
 | 2026-10-26 | v2 | Opus reviewer | APPROVED v2 after 2 fixes; Step 1 deliverable complete | Owner items: Q5 (source unread), Q14, Q27-Q30; checklist awaiting owner verification; section 13 for final release |
+| 2026-10-26 | v3 | Opus reviewer | Owner answered Q5, Q14, Q27-Q30; calendar deadline model, newspaper move, tribal-ID rule from owner source, PO boxes removed, SD-ID address matching, 30-day proposal | — |
+| 2026-10-26 | v3 | Sonnet drafter | Revision v3 | none |
+| 2026-10-26 | v3 | Opus reviewer | APPROVED v3; no further fixes | Owner items: Q23 (30-day proposal), Q28 (newspaper placement), Q31 (tribe names), Q32 (SD-ID address scope); checklist awaiting owner verification |
 
 ---
 
@@ -875,7 +912,6 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 | Real governor's name in the B5 newspaper | Real official named in satire; subject to the names policy (1.3) if the owner chooses | open |
 | Dakota Snout masthead parodying a real outlet | Trademark and parody boundary | open |
 | B12 title card citing real runoff margins | Accuracy; must cite the official canvass | open |
-| Flag design vs file PD release | The PD notice is from the file's author; whether it covers the underlying flag design (design rights possibly held by the City of Sioux Falls; unverified) is a final-release check | open |
 | Statutory text accuracy for every rule shown to players | Rule text shown to players must match the enacted text; all rules are `verified: false` | open |
 | Public release by an author employed in politics read as an organizational statement | Reputational, not legal, despite being a personal project | open |
-| Searchlight source not yet read | Q5 defaults rest on an owner-designated source that has not been read | open |
+| Tribal ID default rests on a 2024 news report of a bill | Enactment and applicability to SB 175's tribal ID item are unverified | open |
