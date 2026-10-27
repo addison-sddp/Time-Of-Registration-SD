@@ -896,6 +896,13 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 | 2026-10-26 | v4 | Sonnet drafter | Revision v4 | none |
 | 2026-10-26 | v4 | Opus reviewer | APPROVED v4; all open questions resolved; design ready for MVP build on owner request | Owner items: participating-tribes list; 30-day applicant line; verification checklist and section 13 before public release |
 | 2026-10-27 | build-1 | Opus reviewer | MVP build stage 1 (scaffold, engine, rules, calendar, data, 124 tests) APPROVED; owner confirmed tribe list; flag SVG committed | Stage 2 (generator, save) and stage 3 (UI) not started |
+| 2026-10-27 | build-2 | Opus reviewer | Round 1 review of MVP build stage 2 (seeded generator `src/gen`, save layer `src/save`): 1 required fix (boundary scan to cover `src/save`) | — |
+| 2026-10-27 | build-2 | Sonnet builder | Fix applied; no source changes needed | none |
+| 2026-10-27 | build-2 | Opus reviewer | MVP build stage 2 APPROVED (256 tests, typecheck and build clean) | Owner items: tribal-ID denials come only from photocopy, expiry or name mismatch (only participating keys are generated); property test runs 200 seeds per profile, not 1,000; an unreadable save is left alone on load but overwritten by the next save. Stage 3 (UI) not started |
+| 2026-10-27 | build-2 | Owner | Accepted all three stage 2 items (tribal-ID denials, 200 seeds per profile, unreadable-save handling) | none |
+| 2026-10-27 | build-2 | Owner | Requested: before a save overwrites an unreadable save, copy it unchanged to backup key `tors.save.unreadable` (latest copy only) | — |
+| 2026-10-27 | build-2 | Sonnet builder | Backup added in `src/save/storage.ts`; if the copy fails nothing is written; `clear()` keeps the backup; 8 tests | none |
+| 2026-10-27 | build-2 | Opus reviewer | Unreadable-save backup APPROVED (263 tests, typecheck and build clean) | none |
 
 ---
 

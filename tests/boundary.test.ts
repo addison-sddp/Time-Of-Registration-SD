@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 
 const ROOT = join(__dirname, "..", "src");
 
@@ -21,11 +21,16 @@ const forbidden: [string, RegExp][] = [
 ];
 
 describe("import boundary", () => {
-  for (const dir of ["engine", "rules", "data"]) {
+  // The save layer gets its storage injected, so only the storage-global pattern is exempt there.
+  const exempt: Record<string, string[]> = { save: ["localStorage"] };
+  for (const dir of ["engine", "rules", "data", "gen", "save"]) {
     for (const file of files(join(ROOT, dir))) {
-      test(`${dir}/${file.split("/").pop()}`, () => {
+      test(`${dir}/${basename(file)}`, () => {
         const text = readFileSync(file, "utf8");
-        const hits = forbidden.filter(([, re]) => re.test(text)).map(([n]) => n);
+        const skip = exempt[dir] ?? [];
+        const hits = forbidden
+          .filter(([n, re]) => !skip.includes(n) && re.test(text))
+          .map(([n]) => n);
         expect(hits).toEqual([]);
       });
     }

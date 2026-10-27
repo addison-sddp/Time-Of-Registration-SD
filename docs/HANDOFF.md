@@ -22,7 +22,7 @@ Every design decision is recorded there (sections 11 and 12).
 | Stage | Scope | Status |
 |---|---|---|
 | 1 | Scaffold, pure rule engine, R1–R3, calendar, shifts and economy data, tests | Done, approved 2026-10-27 |
-| 2 | Seeded applicant generator (`src/gen`), save layer (`src/save`), tests | Not started |
+| 2 | Seeded applicant generator (`src/gen`), save layer (`src/save`), tests | Done, approved 2026-10-27 |
 | 3 | Playable DOM/CSS screen (`src/ui`), sandbox mode, audio, assets | Not started |
 
 Commands: `npm install`, `npm test`, `npm run typecheck`, `npm run build`, `npm run dev`.
