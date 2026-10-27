@@ -60,7 +60,8 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
   box-shadow: inset 0 0 0 4px var(--muted-gold);
 }
 .booth-glass { position: absolute; inset: 0 0 34px 0; display: flex; justify-content: center; align-items: flex-end; }
-.booth-portrait { width: 200px; height: 240px; border: 3px solid var(--ink-black); background: var(--paper-cream); animation: arrive 0.35s ease-out; }
+.booth-portrait { width: 192px; height: 240px; border: 3px solid var(--ink-black); background: var(--paper-cream); animation: arrive 0.35s ease-out; }
+.booth-portrait svg, .doc .doc-portrait svg { image-rendering: pixelated; }
 .booth-portrait svg { width: 100%; height: 100%; display: block; }
 .ledge { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; background: #5C4A33; border-top: 4px solid #3E3222; }
 .speech {
@@ -121,16 +122,6 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
   width: 226px; min-height: 168px; background: var(--paper); border: 2px solid var(--ink-black);
   box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35); font-size: 0.82em; position: absolute; overflow: hidden;
 }
-.doc[data-type="sd_drivers_license"] { --accent: #1F3A5F; --paper: #E8EAEA; }
-.doc[data-type="other_state_drivers_license"] { --accent: #5A4A7A; --paper: #E6E3EC; }
-.doc[data-type="other_state_nondriver_id"] { --accent: #6B5A2A; --paper: #EAE5D2; }
-.doc[data-type="tribal_id"] { --accent: #8C4F2B; --paper: #EDDFC6; }
-.doc[data-type="birth_certificate"] { --accent: #2F5A4E; --paper: #F1ECD8; border-style: double; border-width: 5px; }
-.doc[data-type="us_passport"] { --accent: #14263F; --paper: #E9E4D2; }
-.doc[data-type="consular_report_of_birth_abroad"] { --accent: #3E5A74; --paper: #E3E8EA; }
-.doc[data-type="certificate_of_naturalization"] { --accent: #7A2F2B; --paper: #F0E8D0; border-style: double; border-width: 5px; }
-.doc[data-type="residency_declaration"], .doc[data-type="application_form"] { --accent: #4A5A4E; --paper: #F3EFE2; }
-.doc[data-type="other_unrecognized"] { --accent: #6C6C6C; --paper: #F2F2EE; }
 .doc .face { min-height: 164px; position: relative; }
 .doc .doc-head {
   background: var(--accent); color: var(--paper-cream); padding: 0.35em 0.6em; display: flex;
@@ -138,7 +129,7 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
 }
 .doc .doc-state { font-size: 1.5em; }
 .doc .doc-body { display: flex; gap: 8px; padding: 8px; }
-.doc .doc-portrait { width: 60px; height: 74px; flex: none; border: 2px solid var(--ink-black); background: var(--paper-cream); }
+.doc .doc-portrait { width: 64px; height: 80px; flex: none; border: 2px solid var(--ink-black); background: var(--paper-cream); }
 .doc .doc-portrait svg { width: 100%; height: 100%; display: block; }
 .doc .fields { margin: 0; flex: 1; min-width: 0; }
 .doc .field { display: flex; flex-direction: column; margin-bottom: 3px; }
@@ -173,7 +164,6 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
 /* Photocopy: flat, grayscale, toner speckle. No label. */
 .doc.copy { --paper: #E6E6E3; --accent: #555; filter: grayscale(1) contrast(1.2); box-shadow: none; border-color: #444; }
 .doc.copy::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: var(--speckle); opacity: 0.55; }
-.doc.copy .doc-head { background: #555; }
 
 /* Stamps */
 .stamps { position: absolute; left: 1030px; top: 330px; display: flex; gap: 10px; }

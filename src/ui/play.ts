@@ -43,7 +43,8 @@ const N = narrative;
 const T = (group: Record<string, string>, k: string): string => group[k] ?? "";
 
 const COLS = [345, 575, 805];
-const ROWS = [10, 175, 340];
+// Two rows of three between the letter and the election display; cards are at most about 235 tall.
+const ROWS = [6, 254];
 
 export function createPlay(initial: GameState, env: PlayEnv): PlayView {
   let state = initial;
@@ -152,7 +153,7 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     });
     cards.forEach(([key, el], i) => {
       desk.append(el);
-      placeItem(el, key, { x: COLS[i % 3] ?? 345, y: ROWS[Math.floor(i / 3) % 3] ?? 10 }, deskCtx);
+      placeItem(el, key, { x: (COLS[i % 3] ?? 345) + 12 * Math.floor(i / 6), y: (ROWS[Math.floor(i / 3) % 2] ?? 6) + 14 * Math.floor(i / 6) }, deskCtx);
       docLayer.push(el);
     });
 
@@ -277,7 +278,7 @@ function buildLetter(state: GameState): HTMLElement {
     const rule = b.rules[id];
     if (rule === undefined) continue;
     body.append(h("h3", {}, rule.heading));
-    for (const line of rule.lines) body.append(h("p", { class: line.level === 1 ? "bullet" : "" }, line.level === 1 ? `• ${line.text}` : line.text));
+    for (const line of rule.lines) body.append(h("p", { class: line.level === 1 ? "bullet" : "" }, line.level === 1 ? `\u2022 ${line.text}` : line.text));
     if (id === "R3_CITIZENSHIP") {
       const tribes = (r3Citizenship.params as { participating_tribes: { name: string }[] }).participating_tribes;
       body.append(h("h4", {}, b.tribes_heading), h("ul", { class: "tribes" }, ...tribes.map((t) => h("li", {}, t.name))));

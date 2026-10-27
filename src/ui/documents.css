@@ -1,0 +1,244 @@
+/* Document looks. One original design per type. Everything here is drawn from CSS gradients,
+   inline SVG and system fonts; nothing is copied from a real document or another game.
+   Photocopy rules are last in the file so they flatten whatever is above them. */
+
+.doc {
+  --tint: #E8EAEA;
+  --mid: #7F8FA6;
+  --desk-fold: #52645A;
+  --font-cond: "Arial Narrow", "Roboto Condensed", "Franklin Gothic Medium", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Segoe UI", "Trebuchet MS", Arial, sans-serif;
+  --font-serif: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+  --font-mono: "Lucida Console", "Courier New", monospace;
+}
+.doc .face { isolation: isolate; }
+.doc .decor { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; color: var(--mid); }
+.doc .decor.mark { inset: auto -16px -26px auto; width: 132px; height: 132px; opacity: 0.24; }
+.doc .decor.mark svg { width: 100%; height: 100%; display: block; }
+.doc .doc-head { position: relative; }
+.doc .doc-sub { font-size: 0.66em; font-weight: normal; letter-spacing: 0.04em; }
+.doc .serial { position: absolute; bottom: 11px; left: 17px; font-family: var(--font-mono); font-size: 0.6em; color: #8C2F2B; letter-spacing: 0.06em; z-index: 1; }
+.doc .emblem { flex: none; display: block; }
+.doc button.flip { z-index: 6; }
+
+/* Plastic: sheen and foil sit over the content and let it show through. */
+.doc .sheen {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.34) 43%, rgba(255, 255, 255, 0.06) 52%, transparent 62%);
+}
+.doc .foil {
+  position: absolute; right: 0; top: 2.5em; bottom: 0; width: 8px; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 90, 140, 0.34) 0 6px, rgba(255, 205, 70, 0.34) 6px 12px, rgba(70, 220, 160, 0.34) 12px 18px, rgba(90, 140, 255, 0.34) 18px 24px);
+}
+.doc .back .foil { width: 5px; top: 0; }
+
+/* Paper: crease, folded corner and slightly uneven print, all set from doc_id (see wearFor). */
+.doc[data-paper] .doc-body { transform: translate(var(--print-x, 0), var(--print-y, 0)) rotate(var(--tilt, 0deg)); }
+.doc[data-paper] .fields { opacity: var(--ink, 1); }
+.doc .wear { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.doc .wear .crease, .doc .wear .fold { position: absolute; display: none; }
+.doc.crease-horizontal .wear .crease { display: block; left: 0; right: 0; top: var(--crease-pos); height: 4px; background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.14) 40%, rgba(255, 255, 255, 0.4) 62%, transparent); }
+.doc.crease-vertical .wear .crease { display: block; top: 0; bottom: 0; left: var(--crease-pos); width: 4px; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.14) 40%, rgba(255, 255, 255, 0.4) 62%, transparent); }
+.doc.crease-diagonal .wear .crease { display: block; left: -10%; width: 120%; top: var(--crease-pos); height: 4px; transform: rotate(-14deg); background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.14) 40%, rgba(255, 255, 255, 0.4) 62%, transparent); }
+.doc .wear .fold { width: var(--fold, 16px); height: var(--fold, 16px); }
+.doc.fold-tl .wear .fold { display: block; top: -2px; left: -2px; background: linear-gradient(135deg, var(--desk-fold) 0 48%, #C9C0A6 48% 56%, #F6F1E1 56% 100%); }
+.doc.fold-tr .wear .fold { display: block; top: -2px; right: -2px; background: linear-gradient(225deg, var(--desk-fold) 0 48%, #C9C0A6 48% 56%, #F6F1E1 56% 100%); }
+.doc.fold-bl .wear .fold { display: block; bottom: -2px; left: -2px; background: linear-gradient(45deg, var(--desk-fold) 0 48%, #C9C0A6 48% 56%, #F6F1E1 56% 100%); }
+.doc.fold-br .wear .fold { display: block; bottom: -2px; right: -2px; background: linear-gradient(315deg, var(--desk-fold) 0 48%, #C9C0A6 48% 56%, #F6F1E1 56% 100%); }
+
+/* Raised seal on certificates: light on the upper left, shadow on the lower right. */
+.doc .emboss {
+  position: absolute; right: 14px; bottom: 11px; width: 50px; height: 50px; border-radius: 50%; z-index: -1; pointer-events: none;
+  color: var(--accent); opacity: 0.5;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0) 55%), radial-gradient(circle at 70% 74%, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0) 62%);
+  box-shadow: inset 1px 1px 2px rgba(255, 255, 255, 0.9), inset -1px -2px 3px rgba(0, 0, 0, 0.35), 1px 1px 2px rgba(255, 255, 255, 0.8), -1px -1px 2px rgba(0, 0, 0, 0.25);
+}
+.doc .emboss svg { width: 100%; height: 100%; display: block; filter: drop-shadow(1px 1px 0 rgba(255, 255, 255, 0.9)) drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.35)); }
+
+/* ------------------------------------------------------------ voter registration form (typewriter) */
+.doc[data-type="application_form"] {
+  --accent: #27374F; --mid: #6C7A8E; background: #F8F5EA; border: 1px solid #A39C86; border-radius: 1px;
+  font-family: var(--font-type);
+}
+.doc[data-type="application_form"] .doc-head { background: none; color: var(--accent); border-bottom: 2px solid var(--accent); padding: 0.5em 0.6em 0.3em; gap: 0.5em; }
+.doc[data-type="application_form"] .doc-title { text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.95em; }
+.doc .form-no { font-size: 0.68em; font-weight: normal; border: 1px solid currentColor; padding: 0 0.4em; white-space: nowrap; }
+.doc .doc-instr { margin: 0; padding: 0.3em 0.7em 0; font-size: 0.62em; line-height: 1.25; color: #55524A; font-style: italic; }
+.doc[data-type="application_form"] .doc-body { padding: 5px 8px 6px; }
+.doc[data-type="application_form"] .field { border: 1px solid rgba(39, 55, 79, 0.55); background: rgba(255, 255, 255, 0.6); padding: 1px 4px 3px; margin-bottom: 4px; }
+.doc[data-type="application_form"] dt { font-size: 0.66em; opacity: 0.85; }
+.doc[data-type="application_form"] dd { font-weight: bold; min-height: 1.3em; }
+.doc .office { display: flex; gap: 4px; align-items: stretch; margin: 2px 8px 8px; padding: 3px 4px; border: 1px dashed #7A7766; font-size: 0.62em; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0 3px, transparent 3px 6px); }
+.doc .office-title { flex: 1; align-self: center; text-transform: uppercase; letter-spacing: 0.06em; }
+.doc .office-cell { flex: 0 0 28%; border: 1px solid #77756A; background: rgba(255, 255, 255, 0.7); padding: 0 3px 8px; }
+
+/* ------------------------------------------------------------ residency declaration (ruled pad) */
+.doc[data-type="residency_declaration"] { --accent: #3E5E4C; --mid: #7A9A86; background: #EDF1E3; border: 1px solid #98A58A; border-radius: 1px; }
+.doc[data-type="residency_declaration"] .face {
+  background: repeating-linear-gradient(180deg, transparent 0 17px, rgba(60, 115, 150, 0.26) 17px 18px);
+}
+.doc[data-type="residency_declaration"] .face::before { content: ""; position: absolute; left: 24px; top: 0; bottom: 0; width: 1px; background: rgba(170, 60, 60, 0.55); z-index: -1; }
+.doc[data-type="residency_declaration"] .doc-head { background: #EDF1E3; color: var(--accent); border-top: 3px dotted var(--accent); border-bottom: 3px double var(--accent); padding: 0.4em 0.6em 0.3em 30px; gap: 0.5em; }
+.doc[data-type="residency_declaration"] .doc-title { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.92em; }
+.doc[data-type="residency_declaration"] .doc-instr { padding-left: 30px; }
+.doc[data-type="residency_declaration"] .doc-body { padding: 6px 8px 8px 30px; }
+.doc[data-type="residency_declaration"] dd { border-bottom: 1px solid rgba(27, 27, 27, 0.4); min-height: 1.3em; font-weight: bold; }
+
+/* ------------------------------------------------------------ SD driver license (laminated, wave bands, foil) */
+.doc[data-type="sd_drivers_license"] {
+  --accent: #1F3A5F; --mid: #4D78A8; border: 1px solid #5E7391; border-radius: 10px;
+  background: linear-gradient(135deg, #F3F6F9 0%, #D7E2EE 52%, #EEF3F8 100%);
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
+.doc[data-type="sd_drivers_license"] .decor { opacity: 0.4; }
+.doc[data-type="sd_drivers_license"] .doc-head {
+  background: linear-gradient(90deg, #12243D, #1F3A5F 55%, #33598C); color: #F4EFD9; border-bottom: 2px solid var(--muted-gold);
+  font-family: var(--font-cond); text-transform: uppercase; letter-spacing: 0.06em; font-size: 1.02em;
+  justify-content: flex-start; align-items: center; gap: 0.5em;
+}
+.doc[data-type="sd_drivers_license"] .emblem.bars { width: 1.9em; height: 1.4em; color: var(--muted-gold); }
+.doc[data-type="sd_drivers_license"] .doc-body { padding-right: 15px; }
+.doc[data-type="sd_drivers_license"] .sd-back { background: linear-gradient(160deg, #E9EEF3, #CDD8E3); }
+.doc[data-type="sd_drivers_license"] .sd-back .decor { opacity: 0.28; }
+
+/* ------------------------------------------------------------ other-state license (state accent, rosette) */
+.doc[data-type="other_state_drivers_license"] {
+  --accent: #5A4A7A; border: 1px solid var(--accent); border-radius: 8px;
+  background: linear-gradient(160deg, var(--tint), #FFFFFF 52%, var(--tint));
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+.doc[data-type="other_state_drivers_license"] .face { background: repeating-linear-gradient(0deg, transparent 0 2px, rgba(0, 0, 0, 0.035) 2px 3px); }
+.doc[data-type="other_state_drivers_license"] .doc-head {
+  background: linear-gradient(100deg, var(--accent) 70%, var(--mid)); color: #FFFFFF; font-family: var(--font-cond);
+  letter-spacing: 0.05em; justify-content: flex-start; align-items: center; gap: 0.55em;
+}
+.doc[data-type="other_state_drivers_license"] .doc-state {
+  background: #FFFFFF; color: var(--accent); padding: 0 0.3em; border-radius: 3px; font-weight: 800; font-size: 1.35em; letter-spacing: 0.04em; line-height: 1.1;
+}
+.doc[data-type="other_state_drivers_license"] .back .decor { opacity: 0.3; }
+
+/* ------------------------------------------------------------ other-state nondriver ID (side band, hatch) */
+.doc[data-type="other_state_nondriver_id"] {
+  --accent: #6B5A2A; border: 1px solid var(--accent); border-radius: 3px;
+  background: repeating-linear-gradient(45deg, transparent 0 5px, rgba(255, 255, 255, 0.5) 5px 6px), var(--tint);
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35);
+}
+.doc[data-type="other_state_nondriver_id"] .side-band {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 26px; background: var(--accent); color: #FFFFFF; z-index: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 8px 0;
+}
+.doc[data-type="other_state_nondriver_id"] .side-code { writing-mode: vertical-rl; transform: rotate(180deg); font-family: var(--font-cond); font-weight: 800; font-size: 1.3em; letter-spacing: 0.15em; }
+.doc[data-type="other_state_nondriver_id"] .side-band .emblem { width: 14px; height: 10px; }
+.doc[data-type="other_state_nondriver_id"] .doc-head {
+  background: none; color: var(--accent); border-bottom: 2px solid var(--accent); margin-left: 26px;
+  font-family: var(--font-cond); text-transform: uppercase; letter-spacing: 0.08em;
+}
+.doc[data-type="other_state_nondriver_id"] .doc-body { position: relative; margin-left: 26px; }
+.doc[data-type="other_state_nondriver_id"] .back .decor { opacity: 0.3; }
+
+/* ------------------------------------------------------------ tribal ID (neutral card: layout, color, type only) */
+.doc[data-type="tribal_id"] { --accent: #3A474D; --mid: #8A9499; border: 1px solid #7A8388; border-radius: 6px; background: #ECEAE4; }
+.doc[data-type="tribal_id"] .doc-head { background: var(--accent); color: #F2F0EA; font-family: var(--font-cond); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.95em; }
+.doc[data-type="tribal_id"] .tribe-line { padding: 0.3em 0.6em; font-family: var(--font-sans); font-weight: 700; font-size: 1.1em; border-bottom: 1px solid #9AA2A6; }
+.doc[data-type="tribal_id"] .doc-body { padding: 0 8px 8px 0; gap: 0; }
+.doc[data-type="tribal_id"] .rail { flex: none; width: 76px; align-self: stretch; min-height: 100px; padding: 8px 6px; background: #D4D7D6; border-right: 3px solid var(--accent); margin-right: 8px; display: flex; justify-content: center; align-items: flex-start; }
+.doc[data-type="tribal_id"] .fields { padding-top: 6px; }
+.doc[data-type="tribal_id"] dd { border-bottom: 1px solid #C2C6C6; }
+
+/* ------------------------------------------------------------ birth certificate (green security paper, scallops) */
+.doc[data-type="birth_certificate"] {
+  --accent: #2F5A4E; --mid: #4E8C79; border: 1px solid #8A9A86; border-radius: 2px; background: #EEF0DC;
+  --tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='12'%3E%3Cpath d='M0 4 Q10 -2 20 4 T40 4' fill='none' stroke='%234E8C79' stroke-width='.6'/%3E%3Cpath d='M0 8 Q10 2 20 8 T40 8' fill='none' stroke='%234E8C79' stroke-width='.6'/%3E%3C/svg%3E");
+}
+.doc[data-type="birth_certificate"] .face { background-image: var(--tile); background-color: rgba(238, 240, 220, 0.78); }
+.doc[data-type="birth_certificate"] .decor { color: var(--accent); opacity: 0.7; }
+.doc[data-type="birth_certificate"] .doc-head { background: none; color: var(--accent); flex-direction: column; align-items: center; padding: 15px 10px 2px; font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.08em; font-size: 1.12em; }
+.doc[data-type="birth_certificate"] .doc-sub { font-style: italic; font-variant: normal; letter-spacing: 0.02em; }
+.doc[data-type="birth_certificate"] .doc-body { padding: 4px 16px 24px; }
+
+/* ------------------------------------------------------------ US passport page (glossy, machine-readable strip) */
+.doc[data-type="us_passport"] {
+  --accent: #16294A; --mid: #4D78A8; border: 1px solid #7B8798; border-radius: 4px 11px 11px 4px;
+  background: linear-gradient(120deg, #EAF0F6 0%, #D9E4EF 45%, #F2F6FA 100%);
+  box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+.doc[data-type="us_passport"] .doc-head { background: linear-gradient(90deg, #10203A, #1B3560); color: #F0E7C8; font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.06em; align-items: center; justify-content: flex-start; gap: 0.5em; }
+.doc[data-type="us_passport"] .emblem.stars { width: 2em; height: 2em; color: #D9BC59; }
+.doc[data-type="us_passport"] .pp-type { margin-left: auto; font-family: var(--font-mono); font-variant: normal; font-size: 0.6em; font-weight: normal; text-align: right; letter-spacing: 0.04em; }
+.doc[data-type="us_passport"] .pp-band { display: block; width: 100%; height: 10px; color: #4D78A8; opacity: 0.55; }
+.doc[data-type="us_passport"] .mrz { font-family: var(--font-mono); font-size: 0.52em; line-height: 1.4; white-space: pre; overflow: hidden; background: rgba(255, 255, 255, 0.78); border-top: 1px solid rgba(0, 0, 0, 0.25); padding: 2px 6px 3px; }
+.doc[data-type="us_passport"] .sheen { background: linear-gradient(115deg, transparent 26%, rgba(255, 255, 255, 0.46) 41%, rgba(255, 255, 255, 0.1) 51%, transparent 66%); }
+
+/* ------------------------------------------------------------ consular report (blue-gray security paper, notched frame) */
+.doc[data-type="consular_report_of_birth_abroad"] {
+  --accent: #34506B; --mid: #5F7F9C; border: 1px solid #8497A5; border-radius: 2px; background: #DFE7EC;
+}
+.doc[data-type="consular_report_of_birth_abroad"] .face { background: repeating-linear-gradient(135deg, rgba(52, 80, 107, 0.06) 0 1px, transparent 1px 5px); }
+.doc[data-type="consular_report_of_birth_abroad"] .decor { color: var(--accent); opacity: 0.75; }
+.doc[data-type="consular_report_of_birth_abroad"] .doc-head {
+  margin: 10px 10px 0; background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0 3px, transparent 3px 7px), var(--accent);
+  color: #F1F4F6; font-family: var(--font-sans); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.8em; align-items: center; justify-content: flex-start; gap: 0.5em; padding: 0.35em 0.5em;
+}
+.doc[data-type="consular_report_of_birth_abroad"] .emblem.stars { width: 1.9em; height: 1.9em; color: #D9D3A8; }
+.doc[data-type="consular_report_of_birth_abroad"] .doc-sub { margin-left: auto; text-transform: none; letter-spacing: 0.02em; white-space: nowrap; }
+.doc[data-type="consular_report_of_birth_abroad"] .serial { bottom: 13px; left: 18px; color: #34506B; }
+.doc[data-type="consular_report_of_birth_abroad"] .doc-body { padding: 14px 12px 24px; }
+
+/* ------------------------------------------------------------ certificate of naturalization (parchment, ornate border, big seal) */
+.doc[data-type="certificate_of_naturalization"] {
+  --accent: #7A2F2B; --mid: #A8803A; border: 1px solid #A58E5C; border-radius: 2px;
+  background: radial-gradient(ellipse at 50% 40%, #F8F0DA, #EBDDB7);
+}
+.doc[data-type="certificate_of_naturalization"] .decor { color: var(--accent); opacity: 0.7; }
+.doc[data-type="certificate_of_naturalization"] .doc-head { background: none; color: var(--accent); flex-direction: column; align-items: center; padding: 22px 12px 2px; font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.07em; font-size: 1.1em; text-align: center; }
+.doc[data-type="certificate_of_naturalization"] .doc-sub { font-variant: small-caps; }
+.doc[data-type="certificate_of_naturalization"] .doc-sub.top { font-size: 0.6em; letter-spacing: 0.2em; margin-bottom: 1px; }
+.doc[data-type="certificate_of_naturalization"] .serial { bottom: 14px; left: 20px; }
+.doc[data-type="certificate_of_naturalization"] .doc-body { padding: 4px 18px 26px; }
+.doc[data-type="certificate_of_naturalization"] .emboss { width: 60px; height: 60px; right: 16px; bottom: 14px; color: #A8803A; opacity: 0.62; }
+
+/* ------------------------------------------------------------ unrecognized cards (library, staff, member) */
+.doc[data-type="other_unrecognized"] { --accent: #6C6C6C; border: 1px solid #8A8A82; border-radius: 7px; background: #F2F2EE; }
+.doc[data-type="other_unrecognized"] .doc-head { justify-content: flex-start; align-items: center; gap: 0.5em; font-family: var(--font-sans); font-size: 0.95em; }
+.doc[data-type="other_unrecognized"] .doc-state { margin-left: auto; font-size: 0.78em; font-weight: normal; padding: 0 0.5em; border: 1px solid currentColor; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.08em; }
+.doc[data-type="other_unrecognized"] .emblem.stripes { width: 1.6em; height: 1.1em; }
+.doc[data-kind="library"] { --accent: #2F6B5E; --mid: #6FA091; background: #EAF1E4 !important; }
+.doc[data-kind="library"] .barcode { height: 15px; margin: 2px 12px 8px; background: repeating-linear-gradient(90deg, #1B1B1B 0 1px, transparent 1px 3px, #1B1B1B 3px 5px, transparent 5px 6px, #1B1B1B 6px 7px, transparent 7px 10px); }
+.doc[data-kind="staff"] { --accent: #9A5B2E; border-radius: 6px; background: #FBFBF8 !important; }
+.doc[data-kind="staff"] .face { background: linear-gradient(135deg, var(--accent) 25%, #FFFFFF 25% 50%, var(--accent) 50% 75%, #FFFFFF 75%) bottom / 12px 7px repeat-x; }
+.doc[data-kind="staff"] .doc-head { padding-top: 1.2em; }
+.doc[data-kind="staff"] .doc-body { padding-bottom: 14px; }
+.doc[data-kind="staff"] .clip-slot { position: absolute; top: 4px; left: 50%; margin-left: -14px; width: 28px; height: 6px; border-radius: 3px; background: #9AA0A0; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.55); z-index: 2; }
+.doc[data-kind="member"] { --accent: #4B3F72; border-radius: 12px; background: linear-gradient(145deg, #ECE7F4, #D9D2EA) !important; }
+.doc[data-kind="member"] .doc-head { background: linear-gradient(100deg, #3F3563, #7A5C9E); }
+.doc[data-kind="member"] .chip {
+  flex: none; width: 1.8em; height: 1.35em; border-radius: 3px; border: 1px solid #8A6D1C; position: relative;
+  background: linear-gradient(90deg, transparent 46%, rgba(0, 0, 0, 0.3) 46% 54%, transparent 54%), linear-gradient(0deg, transparent 46%, rgba(0, 0, 0, 0.3) 46% 54%, transparent 54%), linear-gradient(135deg, #E8CE7A, #B8932F);
+}
+
+/* ------------------------------------------------------------ photocopies: flat, gray, toner speckle, no sheen */
+.doc.copy {
+  --accent: #555 !important; --mid: #8C8C8C !important; --tint: #ECECEA !important; --paper: #E6E6E3;
+  background: #E6E6E3 !important; background-image: none !important; box-shadow: none !important; border-color: #444 !important;
+}
+.doc.copy .face { background: none !important; }
+.doc.copy .sheen, .doc.copy .foil, .doc.copy .wear .fold { display: none !important; }
+.doc.copy .emboss { background: none; box-shadow: none; opacity: 0.35; }
+.doc.copy .emboss svg { filter: none; }
+.doc.copy .decor { opacity: 0.35; }
+.doc.copy:is([data-type="sd_drivers_license"], [data-type="other_state_drivers_license"], [data-type="tribal_id"], [data-type="us_passport"], [data-type="consular_report_of_birth_abroad"], [data-type="other_unrecognized"]) .doc-head {
+  background: #555 !important; color: #EEEEEE !important;
+}
+.doc.copy .doc-state { background: #EEEEEE; color: #555; }
+.doc.copy .side-band { background: #555; }
+.doc.copy .rail { background: #CFCFCF; }
+.doc.copy .mrz { background: rgba(255, 255, 255, 0.5); }
+.doc.copy::after { z-index: 5; }
+
+/* Compact card fields: wide rows span both columns, dates and issuer pair up to keep cards short. */
+.doc .fields.grid { display: grid; grid-template-columns: 1fr 1fr; grid-auto-flow: row dense; column-gap: 4px; align-content: start; }
+.doc .fields.grid .field { margin-bottom: 2px; min-width: 0; }
+.doc .fields.grid .field.wide { grid-column: 1 / -1; }
+.doc .fields.grid dd { line-height: 1.15; }
+.doc .fields.grid dt { line-height: 1.1; }
+.doc .fields.grid .field:not(.wide) dd { white-space: nowrap; overflow-wrap: normal; }

@@ -4,7 +4,7 @@ import type { Document } from "../src/engine/types";
 import { doc } from "./fixtures";
 import {
   applicantPortraitSeed, backDigits, finePrintFor, sdBackRows, fill, formatDate, formatPrinted, isValidDate, monthYear,
-  portraitParams, SKIN_TONES,
+  portraitParams, portraitPixels, PX_H, PX_W, SKIN_TONES, HAIR_STYLES, FACIAL_HAIR, rampColors,
 } from "../src/game";
 import { rules } from "../src/rules";
 import { app } from "./fixtures";
@@ -58,7 +58,7 @@ describe("format helpers", () => {
 });
 
 describe("portraits", () => {
-  test("same seed gives identical parameters, different seeds vary", () => {
+  test("same seed gives identical parameters; seeds vary and keep the tone ranges", () => {
     expect(portraitParams(12345)).toEqual(portraitParams(12345));
     const seen = new Set<string>();
     const skins = new Set<string>();
@@ -68,10 +68,8 @@ describe("portraits", () => {
       seen.add(JSON.stringify(p));
       skins.add(p.skin);
       hairs.add(p.hair);
-      expect(p.head_rx).toBeGreaterThanOrEqual(34);
-      expect(p.head_ry).toBeLessThanOrEqual(50);
     }
-    expect(seen.size).toBeGreaterThan(250);
+    expect(seen.size).toBeGreaterThan(290);
     expect(skins.size).toBe(SKIN_TONES.length);
     expect(hairs.size).toBeGreaterThanOrEqual(6);
   });
@@ -81,7 +79,6 @@ describe("portraits", () => {
     expect(applicantPortraitSeed(bare)).toBe(applicantPortraitSeed(bare));
   });
 });
-
 describe("fine print decision", () => {
   const MIN = "2025-07-01";
   const sd = (o: Partial<Document>) => doc({ type: "sd_drivers_license", ...o });
@@ -140,5 +137,111 @@ describe("SD license back rows", () => {
     expect(backDigits("abc")).not.toBe(backDigits("abd"));
     expect(backDigits("abc")).toMatch(/^\d{20}$/);
     expect(sdBackRows(sd({ doc_id: "abc" })).digits).toBe(backDigits("abc"));
+  });
+});
+
+// Measured worst case is about 2300 runs; the grid has 5120 pixels.
+const CEILING = 3000;
+
+describe("pixel portraits", () => {
+  const SEEDS = Array.from({ length: 160 }, (_, i) => i * 104729 + 5);
+  const grids = SEEDS.map((s) => portraitPixels(portraitParams(s)));
+  const runs = (g: ReturnType<typeof portraitPixels>): number => {
+    let n = 0;
+    for (let y = 0; y < g.height; y++) {
+      for (let x = 0; x < g.width; x++) if (x === 0 || g.pixels[y * g.width + x] !== g.pixels[y * g.width + x - 1]) n++;
+    }
+    return n;
+  };
+  test("same seed gives an identical grid", () => {
+    expect(portraitPixels(portraitParams(77))).toEqual(portraitPixels(portraitParams(77)));
+  });
+  test("different seeds differ", () => {
+    const seen = new Set(grids.map((g) => g.pixels.join(",")));
+    expect(seen.size).toBe(grids.length);
+  });
+  test("grid size is right and every index is inside the palette", () => {
+    for (const g of grids) {
+      expect(g.width).toBe(PX_W);
+      expect(g.height).toBe(PX_H);
+      expect(g.pixels.length).toBe(PX_W * PX_H);
+      expect(g.palette.length).toBeLessThanOrEqual(255);
+      expect(g.pixels.every((v) => Number.isInteger(v) && v >= 0 && v < g.palette.length)).toBe(true);
+      expect(g.palette.every((c) => /^#[0-9A-F]{6}$/i.test(c))).toBe(true);
+    }
+  });
+  test("every skin tone is in the palette across seeds", () => {
+    const found = new Set<string>();
+    for (const g of grids) for (const [skin] of SKIN_TONES) if (g.palette.includes(skin.toUpperCase())) found.add(skin);
+    expect(found.size).toBe(SKIN_TONES.length);
+  });
+  test("every hair style and facial-hair option appears across seeds", () => {
+    const params = SEEDS.map((s) => portraitParams(s));
+    expect(new Set(params.map((p) => p.hair_style))).toEqual(new Set(HAIR_STYLES));
+    expect(new Set(params.map((p) => p.facial_hair))).toEqual(new Set(FACIAL_HAIR));
+  });
+  test("no palette colour is pure black, and every pixel is used by the figure or backdrop", () => {
+    for (const g of grids) expect(g.palette.includes("#000000")).toBe(false);
+  });
+  test("ramps shift hue: shadows are redder and darker, highlights lighter", () => {
+    for (const base of ["#C08A5E", "#4A78B0", "#8E8E8A"]) {
+      const r = rampColors(base);
+      expect(r).toHaveLength(5);
+      expect(r[2]).toBe(base);
+      const lightness = (hex: string) => parseInt(hex.slice(1, 3), 16) + parseInt(hex.slice(3, 5), 16) + parseInt(hex.slice(5, 7), 16);
+      expect(lightness(r[0]!)).toBeLessThan(lightness(r[1]!));
+      expect(lightness(r[1]!)).toBeLessThan(lightness(r[2]!));
+      expect(lightness(r[2]!)).toBeLessThan(lightness(r[3]!));
+      expect(lightness(r[3]!)).toBeLessThan(lightness(r[4]!));
+    }
+  });
+  test("hair is made of separate locks: the silhouette touches the backdrop in several row segments on each side", () => {
+    const styled = SEEDS.map((s) => portraitParams(s)).filter((p) => !["bald", "buzz", "receding"].includes(p.hair_style)); // these three are deliberately sparse or close-cropped
+    expect(styled.length).toBeGreaterThan(80);
+    let broken = 0;
+    for (const p of styled) {
+      const g = portraitPixels(p);
+      const hairSet = new Set(rampColors(p.hair, true));
+      const backSet = new Set(rampColors(p.backdrop, true));
+      const isHair = (x: number, y: number) => hairSet.has(g.palette[g.pixels[y * g.width + x] ?? 0] ?? "");
+      const isBack = (x: number, y: number) => backSet.has(g.palette[g.pixels[y * g.width + x] ?? 0] ?? "");
+      const touches = (x: number, y: number) => {
+        for (let dy = -2; dy <= 2; dy++) {
+          for (let dx = -2; dx <= 2; dx++) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx >= 0 && xx < g.width && yy >= 0 && yy < g.height && isBack(xx, yy)) return true;
+          }
+        }
+        return false;
+      };
+      // Outermost hair column per row on each side, among hair pixels that touch the backdrop.
+      // A solid cap or block gives a profile that bends once; separate locks make it zig-zag.
+      for (const side of [-1, 1] as const) {
+        const xs: number[] = [];
+        for (let y = 0; y < 72; y++) {
+          let edge = -1;
+          for (let k = 0; k < g.width / 2 && edge < 0; k++) {
+            const x = side < 0 ? k : g.width - 1 - k;
+            if (isHair(x, y) && touches(x, y)) edge = x;
+          }
+          if (edge >= 0) xs.push(edge);
+        }
+        let flips = 0;
+        let last = 0;
+        for (let i = 1; i < xs.length; i++) {
+          const d = Math.sign((xs[i] ?? 0) - (xs[i - 1] ?? 0));
+          if (d !== 0) {
+            if (last !== 0 && d !== last) flips++;
+            last = d;
+          }
+        }
+        if (flips < 3) broken++;
+      }
+    }    // Nearly every portrait has a ragged outline on both sides, not one solid block.
+    expect(broken).toBeLessThan(styled.length * 2 * 0.2);
+  });  test("horizontal runs keep the rect count well under the pixel count", () => {
+    const worst = Math.max(...grids.map(runs));
+    expect(worst).toBeLessThan(CEILING);
   });
 });

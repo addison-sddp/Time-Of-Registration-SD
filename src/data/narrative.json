@@ -157,7 +157,24 @@
     "restrictions_none": "NONE",
     "class": "CLASS",
     "class_value": "D",
-    "portrait_label": "Portrait"
+    "portrait_label": "Portrait",
+    "form_number_vr": "Form VR-1 (rev.)",
+    "form_instruction": "Print in ink. Complete every field. Enter dates as MM/DD/YYYY.",
+    "office_use": "For office use only",
+    "office_received": "Received",
+    "office_initials": "Initials",
+    "form_number_rd": "Form RD-2 (rev.)",
+    "residency_instruction": "Print the address of residence in ink.",
+    "usa_header": "United States of America",
+    "passport_type": "Type P",
+    "passport_code": "Code USA",
+    "birth_cert_line": "Issued from the registered record.",
+    "consular_line": "Consular record",
+    "naturalization_line": "Certificate of record",
+    "serial_label": "No.",
+    "card_kind_library": "Library",
+    "card_kind_staff": "Staff",
+    "card_kind_member": "Member"
   },
   "dialogue": {
     "applicant.s05.thirty_day": null
