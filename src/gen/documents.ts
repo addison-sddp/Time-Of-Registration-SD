@@ -96,12 +96,12 @@ function expiredSpan(env: Env, years: number, lo: ISODate): Span {
 const licenseAge = (env: Env): ISODate => minDate(addYears(env.birth, 16), env.ctx.as_of);
 
 export function sdLicense(
-  env: Env, doc_id: string, name: string, addr: Address, kind: "new" | "old",
+  env: Env, doc_id: string, name: string, addr: Address, kind: "new" | "old" | "new_nomarker",
 ): Document {
   const { rng, ctx } = env;
   let span: Span;
-  if (kind === "new") {
-    // Qualifying: issued on or after the threshold (the threshold day itself is an edge case).
+  if (kind !== "old") {
+    // Issued on or after the threshold (qualifying only when the marker is true): issued on or after the threshold (the threshold day itself is an edge case).
     const lo = maxDate(ctx.sd_license_min_issue_date, licenseAge(env));
     span =
       lo === ctx.sd_license_min_issue_date && rng.chance(0.05)
@@ -120,6 +120,9 @@ export function sdLicense(
       issue_date: span.issue,
       expiry_date: span.expiry,
       issuing_jurisdiction: "SD",
+      // Owner decision 2026-10-27: new licenses carry the marker unless asked for "new_nomarker";
+      // licenses from before the threshold never do.
+      citizenship_verified_marker: kind === "new",
       name,
       birth_date: env.birth,
       portrait_seed: env.portrait,

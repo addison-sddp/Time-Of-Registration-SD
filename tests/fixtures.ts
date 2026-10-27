@@ -10,7 +10,7 @@ export function doc(over: Partial<Document> = {}): Document {
     issue_date: "2025-08-01",
     expiry_date: "2030-01-01",
     issuing_jurisdiction: "SD",
-    citizenship_verified_marker: null,
+    citizenship_verified_marker: true,
     name: NAME,
     birth_date: "1990-01-01",
     address_line: "100 Example St",

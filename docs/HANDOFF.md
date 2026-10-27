@@ -23,7 +23,7 @@ Every design decision is recorded there (sections 11 and 12).
 |---|---|---|
 | 1 | Scaffold, pure rule engine, R1–R3, calendar, shifts and economy data, tests | Done, approved 2026-10-27 |
 | 2 | Seeded applicant generator (`src/gen`), save layer (`src/save`), tests | Done, approved 2026-10-27 |
-| 3 | Playable DOM/CSS screen (`src/ui`), sandbox mode, audio, assets | Not started |
+| 3 | Playable DOM/CSS screen (`src/ui`), sandbox mode, audio, assets | Done, approved 2026-10-27 |
 
 Commands: `npm install`, `npm test`, `npm run typecheck`, `npm run build`, `npm run dev`.
 
@@ -62,5 +62,8 @@ Commands: `npm install`, `npm test`, `npm run typecheck`, `npm run build`, `npm 
 ## Pending owner items (not blocking)
 
 - 30-day applicant line (later).
+- Stage 3 placeholders: Rev. dates and
+  SD Class text in `narrative.json`; s05 scripted applicant's name and address; seal resemblance check;
+  fine-print legibility.
 - Verification checklist (DESIGN section 10) and legal-review flags (section 13) before any
   public release. The SB 175 statutory text is still unchecked against the enacted law.

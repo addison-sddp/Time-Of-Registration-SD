@@ -15,6 +15,7 @@ export interface GeneratedApplicant {
   application: Application;
   intent: Intent;
   pinned_position?: number; // 0-based slot in the shift that is never shuffled
+  dialogue_key?: string; // key into narrative.dialogue; set on scripted applicants only
 }
 
 // Everything a builder needs to know about the shift it is generating for.

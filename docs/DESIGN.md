@@ -199,7 +199,7 @@ interface Document {
   issue_date: ISODate | null;
   expiry_date: ISODate | null;
   issuing_jurisdiction: string | null;       // "SD", "MN", "US", or a tribe key (see participating_tribes in 4.3)
-  citizenship_verified_marker: boolean | null;  // meaningful for other-state licenses/IDs only
+  citizenship_verified_marker: boolean | null;  // meaningful for SD licenses issued on or after 2025-07-01 and for other-state licenses/IDs
   name: string | null;                       // as printed
   birth_date: ISODate | null;
   address_line: string | null;
@@ -467,7 +467,8 @@ tier1(d) :=
   && (
         ( d.type == "sd_drivers_license"
           && d.issuing_jurisdiction == "SD"
-          && d.issue_date >= "2025-07-01" )                       // on or after (Q2)
+          && d.issue_date >= "2025-07-01"                         // on or after (Q2)
+          && d.citizenship_verified_marker == true )              // owner decision 2026-10-27: printed "U.S. Citizen"
      || ( (d.type == "other_state_drivers_license"
            || d.type == "other_state_nondriver_id")
           && d.issuing_jurisdiction != "SD"
@@ -728,17 +729,17 @@ Rule: all assets are original or pipeline-generated, except those explicitly nam
 | Asset ID | Type | Description | Source | Origin | License | `license_verified` | Status |
 |---|---|---|---|---|---|---|---|
 | `flag_sioux_falls` | image (SVG) | Sioux Falls flag for the desk | https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | third-party (named exception) | Public domain release by file author (Max Rabkin), per Commons permission notice; no attribution required | true (verified by owner, 2026-10-26) | approved for use; committed at assets/flag_sioux_falls.svg |
-| `seal_minnehaha_fictional` | image (SVG) | Original fictionalized county seal for the wall | Authored by project | original | Project owner's choice | false | planned |
-| `portraits_procedural` | generator code | Parametric placeholder faces from `portrait_seed` | Project code | original | Project owner's choice | false | planned |
-| `texture_grain` | generator code | Procedural noise texture | Project code | original | Project owner's choice | false | planned |
-| `stamp_approve`, `stamp_deny` | image (SVG) | Vector stamps, distinct by shape and label | Authored by project | original | Project owner's choice | false | planned |
-| `doc_templates` | image/CSS | Document card layouts (ID, declaration, certificates) | Authored by project | original | Project owner's choice | false | planned |
-| `font_typewriter` | font | Typewriter-style face | TBD | open-licensed candidate TBD | TBD | false | font not chosen |
-| `audio_hum` | audio (generated) | Ambient hum | Web Audio synthesis in project code | original | Project owner's choice | false | planned |
-| `audio_stamp_thud` | audio (generated) | Stamp thud | Web Audio synthesis | original | Project owner's choice | false | planned |
-| `audio_typewriter_click` | audio (generated) | Typewriter clicks | Web Audio synthesis | original | Project owner's choice | false | planned |
+| `seal_minnehaha_fictional` | image (SVG) | Original fictionalized county seal for the wall | Authored by project | original | Project owner's choice | false | created at assets/seal_minnehaha_fictional.svg |
+| `portraits_procedural` | generator code | Parametric placeholder faces from `portrait_seed` | Project code | original | Project owner's choice | false | created (src/game/portrait.ts, src/ui/portrait.ts) |
+| `texture_grain` | generator code | Procedural noise texture | Project code | original | Project owner's choice | false | created (src/ui/grain.ts) |
+| `stamp_approve`, `stamp_deny` | image (SVG) | Vector stamps, distinct by shape and label | Authored by project | original | Project owner's choice | false | created (src/ui/stamps.ts) |
+| `doc_templates` | image/CSS | Document card layouts (ID, declaration, certificates) | Authored by project | original | Project owner's choice | false | created (src/ui/documents.ts, src/ui/style.css) |
+| `font_typewriter` | font | Typewriter-style face | system font stack, no asset | system font stack, no asset | system font stack, no asset | false | created: system font stack, no asset |
+| `audio_hum` | audio (generated) | Ambient hum | Web Audio synthesis in project code | original | Project owner's choice | false | created (src/ui/audio.ts) |
+| `audio_stamp_thud` | audio (generated) | Stamp thud | Web Audio synthesis | original | Project owner's choice | false | created (src/ui/audio.ts) |
+| `audio_typewriter_click` | audio (generated) | Typewriter clicks | Web Audio synthesis | original | Project owner's choice | false | created (src/ui/audio.ts) |
 | `audio_tick` | audio (generated) | Single tick (Part B) | Web Audio synthesis | original | Project owner's choice | false | future |
-| `palette_tokens` | CSS tokens | Section 7.1 colors | Original picks | original | n/a | false | planned |
+| `palette_tokens` | CSS tokens | Section 7.1 colors | Original picks | original | n/a | false | created (src/ui/style.css) |
 
 Manifest fields for each real asset when added: id, file path, type, source URL or tool, author, license name and link, date acquired, date license checked, who checked, `license_verified`, and notes (for example "attribution required").
 
@@ -903,6 +904,11 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 | 2026-10-27 | build-2 | Owner | Requested: before a save overwrites an unreadable save, copy it unchanged to backup key `tors.save.unreadable` (latest copy only) | — |
 | 2026-10-27 | build-2 | Sonnet builder | Backup added in `src/save/storage.ts`; if the copy fails nothing is written; `clear()` keeps the backup; 8 tests | none |
 | 2026-10-27 | build-2 | Opus reviewer | Unreadable-save backup APPROVED (263 tests, typecheck and build clean) | none |
+| 2026-10-27 | build-3 | Owner | ID citizenship marking is fine print reading "U.S. Citizen" on the BACK of license/ID cards (cards flip). SD license back layout specified (barcode with tiny digit box; Class/Endorsements/Restrictions rows; bottom left "Rev." date, "U.S. Citizen" for citizens only, "RENEWABLE 180 DAYS PRIOR TO EXPIRATION"; bottom right birth date above a small SD outline). Other-state backs: "U.S. Citizen" top left. Non-citizens can hold SD licenses issued on or after 2025-07-01, which lack the line, so R3 tier 1 SD now also requires `citizenship_verified_marker == true` (4.3 updated). A license that is not proof of citizenship still serves as the identity document; a separate citizenship document is then required | — |
+| 2026-10-27 | build-3 | Sonnet builder | MVP build stage 3: `src/game` (pure shift state machine, economy, portraits, fine-print helpers), `src/ui` (single screen, desk items with drag and keyboard move, flippable cards, stamps, procedural audio, grain, settings, sandbox via `?sandbox=1`), `narrative.json`, original seal SVG, s05 scripted applicant with placeholder dialogue key, R3 SD marker change with generator and tests | none |
+| 2026-10-27 | build-3 | Opus reviewer | MVP build stage 3 APPROVED after code review and browser play-test (328 tests, typecheck and build clean; title, calendar-mode s01, sandbox, SD license back, economy and summary checked; no console errors). Three-error restart and audio covered by unit tests only, not play-tested | Owner items: Rev. dates (07/01/2025, 03/01/2019) and SD Class text are placeholders; s05 scripted applicant's invented name and address; seal resemblance check; fine-print legibility at the player's screen size; 30-day line still pending |
+| 2026-10-27 | build-3 | Owner | Briefing letter R3 SD line describes the marking, not the issue date: "A South Dakota driver license that reads "U.S. Citizen" on the back." Owner rationale: July 1, 2025 is when SD licenses began printing citizenship status. Rule logic unchanged (date and marker both checked) | Briefing wording now departs from the quoted SB 175 text ("issued after July 1, 2025"); covered by the section 13 statutory-accuracy flag |
+| 2026-10-27 | build-3 | Opus reviewer | Briefing change verified on screen; 328 tests, typecheck clean | none |
 
 ---
 

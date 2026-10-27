@@ -1,2 +1,5 @@
+import "./ui/style.css";
+import { startApp } from "./ui/app";
+
 const app = document.getElementById("app");
-if (app) app.textContent = "Time of Registration — build in progress";
+if (app) startApp(app);

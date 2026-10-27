@@ -20,7 +20,7 @@ const cond = (docs: Document[]) => {
   return r.outcome === "fail" ? r.details.condition : r.outcome;
 };
 
-const sd = (o: Partial<Document> = {}) => doc({ type: "sd_drivers_license", issuing_jurisdiction: "SD", issue_date: "2025-08-01", ...o });
+const sd = (o: Partial<Document> = {}) => doc({ type: "sd_drivers_license", issuing_jurisdiction: "SD", issue_date: "2025-08-01", citizenship_verified_marker: true, ...o });
 const oos = (o: Partial<Document> = {}) =>
   doc({ type: "other_state_drivers_license", issuing_jurisdiction: "MN", citizenship_verified_marker: true, ...o });
 const tribal = (o: Partial<Document> = {}) =>
@@ -32,6 +32,10 @@ const t2 = (type: (typeof tier2Types)[number], o: Partial<Document> = {}) =>
 describe("R3 tier 1", () => {
   test("SD license issued on 2025-07-01 passes", () => expect(cond([sd({ issue_date: "2025-07-01" })])).toBe("pass"));
   test("SD license issued 2025-07-02 passes", () => expect(cond([sd({ issue_date: "2025-07-02" })])).toBe("pass"));
+  test.each([[false], [null]])("new SD license without the marker (%s) fails", (m) =>
+    expect(cond([sd({ citizenship_verified_marker: m })])).toBe("no qualifying document presented"));
+  test.each([[true], [false], [null]])("old SD license fails regardless of marker (%s)", (m) =>
+    expect(cond([sd({ issue_date: "2025-06-30", citizenship_verified_marker: m })])).toBe("no qualifying document presented"));
   test("SD license issued 2025-06-30 fails", () =>
     expect(cond([sd({ issue_date: "2025-06-30" })])).toBe("no qualifying document presented"));
   test("SD license without issue date fails", () => expect(cond([sd({ issue_date: null })])).toBe("no qualifying document presented"));

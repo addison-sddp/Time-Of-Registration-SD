@@ -1,0 +1,169 @@
+{
+  "title": {
+    "game_title": "Time of Registration",
+    "subtitle": "Voter registration review, Minnehaha County, South Dakota",
+    "start": "Start",
+    "continue": "Continue",
+    "settings": "Settings",
+    "back": "Back",
+    "confirm_replace": "A saved record exists. Starting will replace it.",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "all_complete": "All shifts are recorded as complete."
+  },
+  "settings": {
+    "heading": "Settings",
+    "text_scale": "Text size",
+    "audio_volume": "Audio volume",
+    "mute": "Mute audio",
+    "reduced_motion": "Reduced motion",
+    "close": "Close"
+  },
+  "sandbox": {
+    "badge": "SANDBOX",
+    "heading": "Sandbox",
+    "note": "Progress, income and decision records are not saved in this mode.",
+    "active_rules": "Active rules",
+    "as_of": "As-of date",
+    "shift": "Shift content",
+    "attempt": "Attempt number",
+    "begin": "Begin",
+    "exit": "Exit sandbox",
+    "invalid_date": "Date is not valid.",
+    "title_screen": "Title screen"
+  },
+  "briefing": {
+    "header": "Office of the South Dakota Secretary of State",
+    "subject": "Voter registration review",
+    "date_line": "Effective {month_year}",
+    "intro": "The following rules are in effect for this review.",
+    "no_rules": "No rules are in effect for this review.",
+    "closing": "Elections Division",
+    "tribes_heading": "Participating tribes",
+    "rules": {
+      "R1_AGE": {
+        "heading": "Rule R1_AGE: Age",
+        "lines": [
+          { "text": "The applicant must be 18 years of age or older on or before the date of the next election.", "level": 0 },
+          { "text": "The date of birth on the identity document, the application form and any citizenship document must agree.", "level": 0 }
+        ]
+      },
+      "R2_RESIDENCY": {
+        "heading": "Rule R2_RESIDENCY: Residency",
+        "lines": [
+          { "text": "The applicant must list a South Dakota address on the residency declaration.", "level": 0 },
+          { "text": "A residency declaration with no address listed is incomplete.", "level": 0 }
+        ]
+      },
+      "R3_CITIZENSHIP": {
+        "heading": "Rule R3_CITIZENSHIP: Proof of citizenship",
+        "lines": [
+          { "text": "Tier 1. The applicant presents one of the following original documents. Photocopies are not accepted.", "level": 0 },
+          { "text": "A South Dakota driver license that reads \"U.S. Citizen\" on the back.", "level": 1 },
+          { "text": "A driver license or nondriver identification card from another state that indicates citizenship has been verified.", "level": 1 },
+          { "text": "A tribal identification card issued by a participating tribe, listed below.", "level": 1 },
+          { "text": "Tier 2. The applicant presents one of the following. Originals and photocopies are accepted.", "level": 0 },
+          { "text": "Birth certificate.", "level": 1 },
+          { "text": "U.S. passport.", "level": 1 },
+          { "text": "Consular report of birth abroad issued by the U.S. Department of State.", "level": 1 },
+          { "text": "Certificate of naturalization.", "level": 1 },
+          { "text": "Expired documents are not accepted. The name on the presented item must match the name on the application.", "level": 0 }
+        ]
+      }
+    }
+  },
+  "desk": {
+    "briefing_letter": "Briefing letter",
+    "election_display": "Election display",
+    "desk_flag": "Desk flag",
+    "wall_seal": "Wall seal",
+    "movable": "movable desk item",
+    "move_hint": "Arrow keys move the focused item. Shift moves it further.",
+    "next_election": "Next election: {label}, {date}.",
+    "registration_closes": "Registration closes: {date}.",
+    "shift_date": "{month_year}",
+    "approve_stamp": "APPROVED",
+    "deny_stamp": "DENIED",
+    "approve_label": "Approve application (key A)",
+    "deny_label": "Deny application (key D)",
+    "approve_hint": "A",
+    "deny_hint": "D",
+    "controls": "A: approve. D: deny. F: flip focused card. Tab: next desk item.",
+    "applicant_counter": "Applicant {n} of {total}",
+    "no_applicant": "No applicant at the counter.",
+    "title_button": "Title screen",
+    "settings_button": "Settings"
+  },
+  "ledger": {
+    "heading": "Ledger",
+    "income": "Income",
+    "errors": "Errors",
+    "line_approved": "Application {n}: approved",
+    "line_denied": "Application {n}: denied",
+    "empty": "No entries."
+  },
+  "notes": {
+    "error_approved": "Application {n} approved. Condition not met: {rules}.",
+    "error_denied": "Application {n} denied. All active rules satisfied.",
+    "no_election": "No election date is configured for this date.",
+    "evaluation_failed": "Application could not be evaluated."
+  },
+  "summary": {
+    "heading": "Shift summary",
+    "processed": "Applications processed",
+    "correct": "Correct decisions",
+    "errors": "Errors",
+    "earnings": "Earnings",
+    "balance": "Balance",
+    "not_completed": "Shift not completed. Errors: {errors}.",
+    "restart": "Restart shift",
+    "continue": "Continue",
+    "return_to_title": "Return to title"
+  },
+  "doc_types": {
+      "sd_drivers_license": "South Dakota Driver License",
+      "other_state_drivers_license": "Driver License",
+      "other_state_nondriver_id": "Nondriver Identification Card",
+      "tribal_id": "Tribal Identification Card",
+      "birth_certificate": "Certificate of Birth",
+      "us_passport": "United States Passport",
+      "consular_report_of_birth_abroad": "Consular Report of Birth Abroad",
+      "certificate_of_naturalization": "Certificate of Naturalization",
+      "residency_declaration": "Residency Declaration",
+      "other_unrecognized": "Card"
+  },
+  "docs": {
+    "form_title": "Voter Registration Application",
+    "name": "Name",
+    "birth_date": "Date of birth",
+    "address": "Address",
+    "issued": "Issued",
+    "expires": "Expires",
+    "issued_by": "Issued by",
+    "tribe": "Tribe",
+    "fine_print_citizen": "U.S. Citizen",
+    "flip": "flip",
+    "flip_label": "Flip card (key F while focused)",
+    "front": "front",
+    "back": "back",
+    "_rev_note": "Rev. dates are placeholder card-design revision dates for the owner to change.",
+    "rev_new": "Rev. 07/01/2025",
+    "rev_old": "Rev. 03/01/2019",
+    "sd_class": "Class: 1 - car/light truck/moped",
+    "sd_endorsements": "Endorsements: none",
+    "sd_restrictions": "Restrictions: none",
+    "renewable": "RENEWABLE 180 DAYS PRIOR TO EXPIRATION",
+    "restrictions": "RESTR",
+    "restrictions_none": "NONE",
+    "class": "CLASS",
+    "class_value": "D",
+    "portrait_label": "Portrait"
+  },
+  "dialogue": {
+    "applicant.s05.thirty_day": null
+  },
+  "booth": {
+    "dialogue_pending": "[dialogue pending: {key}]",
+    "dialogue_label": "Applicant statement"
+  }
+}

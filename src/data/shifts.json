@@ -1,12 +1,106 @@
 [
-  { "shift_id": "s01", "shift_date": "2025-10-01" },
-  { "shift_id": "s02", "shift_date": "2025-11-01" },
-  { "shift_id": "s03", "shift_date": "2025-12-01" },
-  { "shift_id": "s04", "shift_date": "2026-01-01" },
-  { "shift_id": "s05", "shift_date": "2026-02-01" },
-  { "shift_id": "s06", "shift_date": "2026-03-01" },
-  { "shift_id": "s07", "shift_date": "2026-04-01" },
-  { "shift_id": "s08", "shift_date": "2026-05-01" },
-  { "shift_id": "s09", "shift_date": "2026-06-01" },
-  { "shift_id": "s10", "shift_date": "2026-06-03" }
+    {
+        "shift_id":  "s01",
+        "shift_date":  "2025-10-01"
+    },
+    {
+        "shift_id":  "s02",
+        "shift_date":  "2025-11-01"
+    },
+    {
+        "shift_id":  "s03",
+        "shift_date":  "2025-12-01"
+    },
+    {
+        "shift_id":  "s04",
+        "shift_date":  "2026-01-01"
+    },
+    {
+        "shift_id":  "s05",
+        "shift_date":  "2026-02-01",
+        "scripted_applicants":  [
+                                    {
+                                        "dialogue_key":  "applicant.s05.thirty_day",
+                                        "pinned_position":  3,
+                                        "intent":  {
+                                                       "verdict":  "approve"
+                                                   },
+                                        "application":  {
+                                                            "application_id":  "s05-scripted01",
+                                                            "applicant_name":  "Marguerite L. Ashby",
+                                                            "declared_birth_date":  "1984-03-14",
+                                                            "id_document":  {
+                                                                                "doc_id":  "s05-script-id",
+                                                                                "type":  "sd_drivers_license",
+                                                                                "is_photocopy":  false,
+                                                                                "issue_date":  "2025-09-10",
+                                                                                "expiry_date":  "2030-09-10",
+                                                                                "issuing_jurisdiction":  "SD",
+                                                                                "citizenship_verified_marker":  true,
+                                                                                "name":  "Marguerite L. Ashby",
+                                                                                "birth_date":  "1984-03-14",
+                                                                                "address_line":  "412 Larkspur Ln",
+                                                                                "address_city":  "Fairmont Ridge",
+                                                                                "address_state":  "SD",
+                                                                                "address_postal":  "57105",
+                                                                                "portrait_seed":  48151623
+                                                                            },
+                                                            "residency_declaration":  {
+                                                                                          "doc_id":  "s05-script-res",
+                                                                                          "type":  "residency_declaration",
+                                                                                          "is_photocopy":  false,
+                                                                                          "issue_date":  null,
+                                                                                          "expiry_date":  null,
+                                                                                          "issuing_jurisdiction":  null,
+                                                                                          "citizenship_verified_marker":  null,
+                                                                                          "name":  "Marguerite L. Ashby",
+                                                                                          "birth_date":  null,
+                                                                                          "address_line":  "412 Larkspur Ln",
+                                                                                          "address_city":  "Fairmont Ridge",
+                                                                                          "address_state":  "SD",
+                                                                                          "address_postal":  "57105",
+                                                                                          "portrait_seed":  null
+                                                                                      },
+                                                            "citizenship_documents":  [
+                                                                                          {
+                                                                                              "doc_id":  "s05-script-id",
+                                                                                              "type":  "sd_drivers_license",
+                                                                                              "is_photocopy":  false,
+                                                                                              "issue_date":  "2025-09-10",
+                                                                                              "expiry_date":  "2030-09-10",
+                                                                                              "issuing_jurisdiction":  "SD",
+                                                                                              "citizenship_verified_marker":  true,
+                                                                                              "name":  "Marguerite L. Ashby",
+                                                                                              "birth_date":  "1984-03-14",
+                                                                                              "address_line":  "412 Larkspur Ln",
+                                                                                              "address_city":  "Fairmont Ridge",
+                                                                                              "address_state":  "SD",
+                                                                                              "address_postal":  "57105",
+                                                                                              "portrait_seed":  48151623
+                                                                                          }
+                                                                                      ]
+                                                        }
+                                    }
+                                ]
+    },
+    {
+        "shift_id":  "s06",
+        "shift_date":  "2026-03-01"
+    },
+    {
+        "shift_id":  "s07",
+        "shift_date":  "2026-04-01"
+    },
+    {
+        "shift_id":  "s08",
+        "shift_date":  "2026-05-01"
+    },
+    {
+        "shift_id":  "s09",
+        "shift_date":  "2026-06-01"
+    },
+    {
+        "shift_id":  "s10",
+        "shift_date":  "2026-06-03"
+    }
 ]

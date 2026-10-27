@@ -16,7 +16,7 @@ import type { GenContext } from "./types";
 
 type ProofKind =
   | "sd_new" | "other_state_marker" | "tribal" | "tier2"
-  | "none_empty" | "none_distractor" | "none_old_license" | "none_no_marker";
+  | "none_empty" | "none_distractor" | "none_old_license" | "none_no_marker" | "none_sd_no_marker";
 
 interface Proof {
   kind: ProofKind;
@@ -73,6 +73,7 @@ function resolveProof(rng: Rng, spec: Spec, ctx: GenContext, f: Facts): Proof {
     // R3_NO_QUALIFYING: nothing that classifies as tier 1 or tier 2.
     const none: ProofKind[] = ["none_empty", "none_distractor", "none_no_marker"];
     if (f.oldSdOk) none.push("none_old_license");
+    if (f.sdNewOk) none.push("none_sd_no_marker");
     return make(rng.pick(none));
   }
 
@@ -82,6 +83,7 @@ function resolveProof(rng: Rng, spec: Spec, ctx: GenContext, f: Facts): Proof {
   if (!ctx.active_rule_ids.includes("R3_CITIZENSHIP")) {
     entries.push(["none_empty", 1], ["none_distractor", 1], ["none_no_marker", 1]);
     if (f.oldSdOk) entries.push(["none_old_license", 1]);
+    if (f.sdNewOk) entries.push(["none_sd_no_marker", 1]);
   }
   const kind = rng.weighted(entries);
   // Tier 2 accepts photocopies (Q3); tier 1 never may.
@@ -133,13 +135,16 @@ export function renderApplication(
   // An identity document that never classifies under R3: a license from before the
   // threshold, or an out-of-state ID without the citizenship marker.
   const plainId = (): Document => {
-    const options: (readonly ["nondriver" | "sd_old" | "state", number])[] = [["nondriver", 2]];
+    const options: (readonly ["nondriver" | "sd_old" | "sd_new_nomarker" | "state", number])[] = [["nondriver", 2]];
     if (f.oldSdOk) options.push(["sd_old", 4]);
+    if (f.sdNewOk) options.push(["sd_new_nomarker", 3]);
     if (f.stateLicOk) options.push(["state", 3]);
     const marker = rng.chance(0.5) ? false : null;
     switch (rng.weighted(options)) {
       case "sd_old":
         return sdLicense(env, idId, plainName(), sdIdAddr, "old");
+      case "sd_new_nomarker":
+        return sdLicense(env, idId, plainName(), sdIdAddr, "new_nomarker");
       case "state":
         return otherStateLicense(env, idId, plainName(), otherAddr(), { nondriver: false, marker, expired: false });
       default:
@@ -187,6 +192,10 @@ export function renderApplication(
       if (rng.chance(0.3)) cit.unshift(cloneDoc(id)); // e.g. an old SD license beside a passport
       break;
     }
+    case "none_sd_no_marker":
+      id = sdLicense(env, idId, plainName(), sdIdAddr, "new_nomarker");
+      cit = [cloneDoc(id)];
+      break;
     case "none_old_license":
       id = sdLicense(env, idId, plainName(), sdIdAddr, "old");
       cit = [cloneDoc(id)];

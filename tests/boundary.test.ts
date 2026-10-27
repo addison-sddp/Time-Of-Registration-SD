@@ -23,7 +23,7 @@ const forbidden: [string, RegExp][] = [
 describe("import boundary", () => {
   // The save layer gets its storage injected, so only the storage-global pattern is exempt there.
   const exempt: Record<string, string[]> = { save: ["localStorage"] };
-  for (const dir of ["engine", "rules", "data", "gen", "save"]) {
+  for (const dir of ["engine", "rules", "data", "gen", "save", "game"]) {
     for (const file of files(join(ROOT, dir))) {
       test(`${dir}/${basename(file)}`, () => {
         const text = readFileSync(file, "utf8");

@@ -51,7 +51,9 @@ function tier1Type(d: Document, p: R3Params): boolean {
     return (
       d.issuing_jurisdiction === "SD" &&
       d.issue_date !== null &&
-      d.issue_date >= p.sd_license_min_issue_date
+      d.issue_date >= p.sd_license_min_issue_date &&
+      // owner decision 2026-10-27: printed "U.S. Citizen" (a non-citizen can hold a new SD license)
+      d.citizenship_verified_marker === true
     );
   }
   if (p.other_state_types.includes(d.type)) {
