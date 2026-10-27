@@ -152,6 +152,8 @@ interface SourceRef {
 
 ### 3.3 Representing `check` (PROPOSAL)
 
+MVP build: checks are implemented as pure functions in rule files; the declarative interpreter is deferred (manager decision).
+
 The brief says `check` is a "pure function spec". Two representations are proposed, and the engine accepts both under one interface:
 
 1. Declarative expression (preferred). A JSON predicate tree evaluated by a small generic interpreter. Example operators: `all`, `any`, `not`, `eq`, `in`, `exists`, `date_lte`, `date_gt`, `date_minus_years`, `lookup`, `some_of` (existential quantifier over a list). Rule files are then pure data, serializable, and diffable.
@@ -725,7 +727,7 @@ Rule: all assets are original or pipeline-generated, except those explicitly nam
 
 | Asset ID | Type | Description | Source | Origin | License | `license_verified` | Status |
 |---|---|---|---|---|---|---|---|
-| `flag_sioux_falls` | image (SVG) | Sioux Falls flag for the desk | https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | third-party (named exception) | Public domain release by file author (Max Rabkin), per Commons permission notice; no attribution required | true (verified by owner, 2026-10-26) | approved for use; SVG to be committed to the repo |
+| `flag_sioux_falls` | image (SVG) | Sioux Falls flag for the desk | https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | third-party (named exception) | Public domain release by file author (Max Rabkin), per Commons permission notice; no attribution required | true (verified by owner, 2026-10-26) | approved for use; committed at assets/flag_sioux_falls.svg |
 | `seal_minnehaha_fictional` | image (SVG) | Original fictionalized county seal for the wall | Authored by project | original | Project owner's choice | false | planned |
 | `portraits_procedural` | generator code | Parametric placeholder faces from `portrait_seed` | Project code | original | Project owner's choice | false | planned |
 | `texture_grain` | generator code | Procedural noise texture | Project code | original | Project owner's choice | false | planned |
@@ -809,6 +811,7 @@ Every item below is `verified: false` except the desk flag license row, which th
 | 59 | B1 prior-registration provisions | Not registered in another state; listing a prior address cancels it; prior info can update an SD registration | Owner brief | UNSOURCED | false |
 | 60 | Real-world effects being satirized | The "real-world effects" of SB 175 and related rules on SD residents | Owner brief | UNSOURCED | false |
 | 61 | Candidate citations added by drafter | None; the only candidate URLs are owner-supplied (flag page, Searchlight article) | n/a | n/a | false |
+| 62 | Participating tribes list: the nine tribes listed in R3 params (owner: all tribes in South Dakota) | Owner confirmed the nine names, 2026-10-27 | Owner | true (verified by owner, 2026-10-27) |
 
 Items in this table are claims the game may rely on or imply. The jurisdiction, auditor-role, and real-world-effects rows are listed because the document cannot trace them to a source. The B12 winner row is intentionally unfilled (not supplied by owner); the drafter does not invent it.
 
@@ -892,6 +895,7 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 | 2026-10-26 | v4 | Opus reviewer | Owner answered Q23, Q28, Q31, Q32; address matching removed from R2 | — |
 | 2026-10-26 | v4 | Sonnet drafter | Revision v4 | none |
 | 2026-10-26 | v4 | Opus reviewer | APPROVED v4; all open questions resolved; design ready for MVP build on owner request | Owner items: participating-tribes list; 30-day applicant line; verification checklist and section 13 before public release |
+| 2026-10-27 | build-1 | Opus reviewer | MVP build stage 1 (scaffold, engine, rules, calendar, data, 124 tests) APPROVED; owner confirmed tribe list; flag SVG committed | Stage 2 (generator, save) and stage 3 (UI) not started |
 
 ---
 

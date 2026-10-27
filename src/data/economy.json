@@ -1,0 +1,8 @@
+{
+  "income_per_correct_decision": 7,
+  "penalty_per_error": 12,
+  "error_limit_per_shift": 3,
+  "starting_balance": 0,
+  "minimum_balance": 0,
+  "restart_restores_shift_start_balance": true
+}

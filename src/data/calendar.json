@@ -1,0 +1,5 @@
+[
+  { "from": null,         "to": "2026-05-19", "election_date": "2026-06-02", "label": "statewide primary and municipal election", "registration_deadline": "2026-05-18", "verified": false },
+  { "from": "2026-05-19", "to": "2026-06-03", "election_date": "2026-06-23", "label": "municipal runoff, if required",            "registration_deadline": "2026-06-08", "verified": false },
+  { "from": "2026-06-03", "to": "2026-06-09", "election_date": "2026-06-23", "label": "municipal runoff",                         "registration_deadline": "2026-06-08", "verified": false }
+]

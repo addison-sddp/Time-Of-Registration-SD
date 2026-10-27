@@ -1,0 +1,12 @@
+[
+  { "shift_id": "s01", "shift_date": "2025-10-01" },
+  { "shift_id": "s02", "shift_date": "2025-11-01" },
+  { "shift_id": "s03", "shift_date": "2025-12-01" },
+  { "shift_id": "s04", "shift_date": "2026-01-01" },
+  { "shift_id": "s05", "shift_date": "2026-02-01" },
+  { "shift_id": "s06", "shift_date": "2026-03-01" },
+  { "shift_id": "s07", "shift_date": "2026-04-01" },
+  { "shift_id": "s08", "shift_date": "2026-05-01" },
+  { "shift_id": "s09", "shift_date": "2026-06-01" },
+  { "shift_id": "s10", "shift_date": "2026-06-03" }
+]
