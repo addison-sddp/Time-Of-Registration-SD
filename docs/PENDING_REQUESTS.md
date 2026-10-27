@@ -1,8 +1,8 @@
 # Pending owner requests (build-5)
 
 Saved 2026-10-27 at the owner's request, to start after the usage limit resets (2:10 AM, Tuesday,
-October 27). Nothing here is started. The build-4 work (audio, art, shift flow) is in the working tree,
-NOT committed, and awaits the owner's go-ahead to commit. Follow the working agreement in HANDOFF.md.
+October 27). Nothing here is started. The build-4 work (audio, art, shift flow) is committed
+(449e99b). Follow the working agreement in HANDOFF.md.
 
 The owner attached screenshots from play (Firefox). They are not saved in the repo; what they showed is
 described in words below.

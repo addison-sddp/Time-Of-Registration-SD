@@ -62,7 +62,7 @@ Commands: `npm install`, `npm test`, `npm run typecheck`, `npm run build`, `npm 
 ## Next up
 
 `docs/PENDING_REQUESTS.md` holds the owner's build-5 fix list (saved 2026-10-27), with open questions
-to ask first. Build-4 (audio, art, shift flow) is approved by the reviewer but not yet committed.
+to ask first. Build-4 (audio, art, shift flow) is approved and committed (449e99b).
 
 ## Pending owner items (not blocking)
 
