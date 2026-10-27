@@ -71,7 +71,7 @@ describe("reason catalog", () => {
     expect(cat[1]!.reasons.map((r) => r.text)).toEqual([
       "No date of birth on identity document",
       "Date of birth differs between documents",
-      "Below eligibility date for the next election",
+      "Below minimum voter registration age",
     ]);
     expect(cat[0]!.heading).toBe(narrative.briefing.rules["R2_RESIDENCY"]!.heading);
   });
@@ -96,7 +96,7 @@ describe("reason catalog", () => {
 
   test("R1's eligibility reason shows no date placeholder", () => {
     const r = reason("R1_AGE.below_eligibility");
-    expect(r.text).toBe("Below eligibility date for the next election");
+    expect(r.text).toBe("Below minimum voter registration age");
     expect(r.text).not.toMatch(/[({]/);
     expect(r.condition).toBe("below eligibility date for the next election");
   });

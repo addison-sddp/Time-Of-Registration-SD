@@ -1,0 +1,60 @@
+/* Rulebook desk item: closed cover about 120x160, open about 460x320. */
+.rulebook { width: 120px; height: 160px; color: var(--ink-black); font-family: var(--font-type); }
+.rulebook.is-open { width: 460px; height: 320px; cursor: default; }
+.rulebook.is-closed { cursor: pointer; }
+.rulebook button, .rulebook textarea { font-family: inherit; }
+.rulebook button:focus-visible, .rulebook textarea:focus-visible, .rulebook .rb-sheet:focus-visible {
+  outline: 3px solid var(--muted-gold); outline-offset: 2px;
+}
+
+.rb-cover {
+  width: 100%; height: 100%; box-sizing: border-box; background: var(--civic-navy); color: var(--paper-cream);
+  border: 2px solid var(--ink-black); box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px;
+  text-align: center; user-select: none;
+}
+.rb-cover[hidden], .rb-book[hidden] { display: none; }
+.rb-seal { width: 64px; height: 64px; display: block; }
+.rb-cover-title { font-size: 0.8em; font-weight: bold; letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.2; }
+.rb-cover-sub { font-size: 0.7em; opacity: 0.8; }
+
+.rb-book {
+  width: 100%; height: 100%; box-sizing: border-box; display: flex; flex-direction: column;
+  background: var(--paper-cream); border: 2px solid var(--ink-black); box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35);
+  user-select: none;
+}
+.rb-page { flex: 1; min-height: 0; display: flex; }
+.rb-page.rb-turn { animation: rb-turn 140ms ease-out; }
+@keyframes rb-turn { from { opacity: 0.2; transform: translateX(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .rb-page.rb-turn { animation: none; } }
+
+.rb-sheet { flex: 1; min-width: 0; padding: 12px 16px; overflow-y: auto; box-sizing: border-box; font-size: 0.85em; line-height: 1.4; }
+.rb-title { margin: 0 0 8px; font-size: 1.1em; font-weight: bold; }
+.rb-line { margin: 0 0 6px; font-weight: normal; }
+.rb-bullet { padding-left: 1.2em; text-indent: -0.9em; }
+.rb-bullet::before { content: "\2022\00a0\00a0"; }
+
+.rb-bar {
+  display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-top: 2px solid var(--ink-black);
+  background: var(--civic-navy); color: var(--paper-cream);
+}
+.rb-counter { flex: 1; text-align: center; font-size: 0.75em; }
+.rb-btn {
+  min-width: 28px; height: 26px; border: 2px solid var(--ink-black); background: var(--paper-cream);
+  color: var(--ink-black); font-size: 1em; font-weight: bold; cursor: pointer; line-height: 1;
+}
+.rb-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* Notes: ruled notebook paper. Line height 24px; the text sits on each rule. */
+.rb-notes-sheet { display: flex; flex-direction: column; background: #fdfdf8; padding: 8px 12px 0 44px; position: relative; overflow: hidden; }
+.rb-notes-sheet::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 34px; width: 2px; background: #c0392b; opacity: 0.75;
+}
+.rb-notes-sheet .rb-title { line-height: 24px; margin: 0; font-size: 0.95em; }
+.rb-notes {
+  flex: 1; min-height: 0; width: 100%; box-sizing: border-box; resize: none; border: 0; margin: 0; padding: 0 4px 0 0;
+  background-color: transparent;
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 23px, #a9c7e8 23px, #a9c7e8 24px);
+  background-attachment: local;
+  color: var(--ink-black); font-size: 15px; line-height: 24px; user-select: text; -webkit-user-select: text; cursor: text;
+}

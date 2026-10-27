@@ -162,3 +162,19 @@ export function starPoints(cx: number, cy: number, outer: number, inner: number,
   }
   return pts.join(" ");
 }
+
+// ---------------------------------------------------------------- which back a card shows
+
+export type BackKind = "sd" | "generic";
+
+// An SD license always shows the SD back layout (barcode and tiny digit box, class, endorsements,
+// restrictions, revision line, birth date over a small SD outline). The choice depends only on the
+// document type, never on the issuing jurisdiction text or on is_photocopy. Every other flippable
+// card shows the generic back.
+export function backKind(d: Pick<Document, "type">): BackKind {
+  return d.type === "sd_drivers_license" ? "sd" : "generic";
+}
+
+// A real passport is shown as a closed book that the player opens. A photocopy is a flat copy of
+// the data page only, so it never is a book.
+export const isBookPassport = (d: Pick<Document, "type" | "is_photocopy">): boolean => d.type === "us_passport" && !d.is_photocopy;

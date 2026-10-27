@@ -13,6 +13,7 @@ export function doc(over: Partial<Document> = {}): Document {
     citizenship_verified_marker: true,
     name: NAME,
     birth_date: "1990-01-01",
+    sex: "F",
     address_line: "100 Example St",
     address_city: "Sioux Falls",
     address_state: "SD",
@@ -31,6 +32,7 @@ export function residency(over: Partial<Document> = {}): Document {
     issuing_jurisdiction: null,
     name: NAME,
     birth_date: null,
+    sex: null,
     portrait_seed: null,
     ...over,
   });

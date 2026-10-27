@@ -16,6 +16,7 @@ import type { GenContext } from "./types";
 
 type ProofKind =
   | "sd_new" | "other_state_marker" | "tribal" | "tier2"
+  | "plain_only"
   | "none_empty" | "none_distractor" | "none_old_license" | "none_no_marker" | "none_sd_no_marker";
 
 interface Proof {
@@ -77,14 +78,12 @@ function resolveProof(rng: Rng, spec: Spec, ctx: GenContext, f: Facts): Proof {
     return make(rng.pick(none));
   }
 
-  // Must satisfy R3 (or R3 is inactive and anything goes).
+  // R3 not in force: nobody brings citizenship papers, just an identity document (as before the SAVE Act).
+  if (!ctx.active_rule_ids.includes("R3_CITIZENSHIP")) return make("plain_only");
+
+  // Must satisfy R3.
   const entries: [ProofKind, number][] = [["other_state_marker", 2], ["tribal", 2], ["tier2", 3]];
   if (f.sdNewOk) entries.push(["sd_new", 3]);
-  if (!ctx.active_rule_ids.includes("R3_CITIZENSHIP")) {
-    entries.push(["none_empty", 1], ["none_distractor", 1], ["none_no_marker", 1]);
-    if (f.oldSdOk) entries.push(["none_old_license", 1]);
-    if (f.sdNewOk) entries.push(["none_sd_no_marker", 1]);
-  }
   const kind = rng.weighted(entries);
   // Tier 2 accepts photocopies (Q3); tier 1 never may.
   return make(kind, { photocopy: kind === "tier2" && rng.chance(0.4) });
@@ -106,7 +105,7 @@ export function renderApplication(
   ctx: GenContext,
   application_id: string,
 ): Application {
-  const env: Env = { rng, ctx, birth: spec.birth_date, portrait: spec.portrait_seed };
+  const env: Env = { rng, ctx, birth: spec.birth_date, portrait: spec.portrait_seed, sex: spec.sex };
   const f = factsFor(spec, ctx);
   const proof = resolveProof(rng, spec, ctx, f);
   const idId = `${application_id}-id`;
@@ -189,7 +188,25 @@ export function renderApplication(
       });
       id = plainId();
       cit = [proofDoc];
-      if (rng.chance(0.3)) cit.unshift(cloneDoc(id)); // e.g. an old SD license beside a passport
+      if (rng.chance(0.1)) cit.unshift(cloneDoc(id)); // e.g. an old SD license beside a passport
+      break;
+    }
+    case "plain_only": {
+      // Mostly a South Dakota driver's license; an out-of-state license or a nondriver ID is rare.
+      const pick = rng.weighted<"sd" | "state" | "nondriver">([
+        ["sd", f.sdNewOk || f.oldSdOk ? 87 : 0], ["state", f.stateLicOk ? 7 : 0], ["nondriver", f.sdNewOk || f.oldSdOk ? 6 : 100],
+      ]);
+      if (pick === "sd") {
+        const kind = rng.weighted<"new" | "new_nomarker" | "old">([
+          ["new", f.sdNewOk ? 45 : 0], ["new_nomarker", f.sdNewOk ? 25 : 0], ["old", f.oldSdOk ? 30 : 0],
+        ]);
+        id = sdLicense(env, idId, plainName(), sdIdAddr, kind);
+      } else {
+        id = otherStateLicense(env, idId, plainName(), pick === "state" ? otherAddr() : rng.chance(0.5) ? sdIdAddr : otherAddr(), {
+          nondriver: pick === "nondriver", marker: rng.chance(0.5) ? true : null, expired: false,
+        });
+      }
+      cit = [];
       break;
     }
     case "none_sd_no_marker":
@@ -214,7 +231,7 @@ export function renderApplication(
   }
 
   // Distractors: recognized by no rule and never change a verdict.
-  const extras = proof.kind === "none_distractor" ? rng.int(1, 2) : rng.chance(0.15) ? 1 : 0;
+  const extras = proof.kind === "none_distractor" ? 1 : rng.chance(proof.kind === "plain_only" ? 0.06 : 0.06) ? 1 : 0;
   for (let i = 1; i <= extras; i++) {
     cit.splice(rng.int(0, cit.length), 0, distractor(env, `${application_id}-x${i}`, plainName()));
   }

@@ -2,24 +2,26 @@ import sealUrl from "../../assets/seal_minnehaha_fictional.svg";
 import { calendar, narrative } from "../data";
 import { lookupElection } from "../engine/calendar";
 import { binPixels, boothScenePixels } from "../game/boothart";
-import { fill, formatDate, formatMoney, monthYear } from "../game/format";
-import { applicantPortraitSeed } from "../game/portrait";
+import { fill, formatMoney, monthYear } from "../game/format";
+import { bulletinEntries, NO_NEW_RULES_LINE } from "../game/ruletext";
+import { applicantPortraitSeed, applicantTraits } from "../game/portrait";
 import { findReason, reasonCatalog, type DocSource } from "../game/reasons";
 import {
   acknowledgeNotice, activeRules, backToReasons, callNext, canCallNext, cancelDenial, chooseReason, chooseSource,
   currentApplicant, deliverBulletin, fileForm, startDenial, stampApprove, stampDenied, type GameState,
 } from "../game/state";
 import type { GeneratedApplicant } from "../gen/types";
-import { r3Citizenship } from "../rules";
 import type { Decision } from "../save/schema";
 import type { Audio, Sfx } from "./audio";
 import { clear, h } from "./dom";
 import { placeItem, type DeskContext } from "./desk";
-import { materialOf, renderCard, renderForm, renderResidency } from "./documents";
-import { flagPixels } from "../game/flagart";
+import { materialOf, renderCard, renderForm } from "./documents";
 import { drawPortrait } from "./portrait";
 import { drawGrid } from "./pixels";
 import { stampFace, stampImpression } from "./stamps";
+import { createRulebook } from "./rulebook";
+import { buildSigns } from "./signs";
+import { createWallClock } from "./wallclock";
 import "./flow.css";
 
 export const STAGE_W = 1280;
@@ -31,6 +33,8 @@ export interface PlayEnv {
   audio: Audio;
   layout: Record<string, { x: number; y: number }>;
   layoutChanged(): void;
+  notes: string;
+  onNotesChange(text: string): void;
   scale(): number;
   reducedMotion(): boolean;
   onState(s: GameState): void;
@@ -47,6 +51,12 @@ export interface PlayView {
 
 const N = narrative;
 const T = (group: Record<string, string>, k: string): string => group[k] ?? "";
+
+// Desk fixtures on the right edge (desk coordinates).
+const SLIP_POS = { x: 1040, y: 138 };
+const RULEBOOK_POS = { x: 1040, y: 330 };
+const RULEBOOK_OPEN_W = 460;
+const RULEBOOK_OPEN_H = 320;
 
 const COLS = [345, 575, 805];
 // Two rows of three; cards are at most about 235 tall.
@@ -68,6 +78,7 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
   let destroyed = false;
   let completeSent = false;
   let sourceOn = false;
+  let evalNote = ""; // procedural note when a form could not be evaluated
   const timers = new Set<number>();
   const rm = (): boolean => env.reducedMotion();
   const sfx = (name: Sfx): void => env.audio.sfx(name);
@@ -122,19 +133,22 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
   const hudCount = h("div", { class: "hud-count" });
   const incomeVal = h("span", { class: "val" });
   const errorsVal = h("span", { class: "val" });
-  const ledgerList = h("ol", { class: "ledger-list" });
-  const note = h("p", { class: "note", role: "status", "aria-live": "polite", "aria-atomic": "true" });
+  const note = h("p", { class: "note" });
+  const wallClock = createWallClock(!rm());
   const hud = h(
     "aside",
     { class: "hud", "aria-label": T(N.ledger, "heading") },
-    state.mode === "sandbox" ? h("div", { class: "badge", role: "note" }, T(N.sandbox, "badge")) : null,
-    hudDate,
-    hudCount,
-    h("div", { class: "counter", role: "status" }, h("span", {}, `${T(N.ledger, "income")}: `), incomeVal),
-    h("div", { class: "counter", role: "status" }, h("span", {}, `${T(N.ledger, "errors")}: `), errorsVal),
-    h("h2", {}, T(N.ledger, "heading")),
-    ledgerList,
-    note,
+    h("div", { class: "wall-clock-wrap" }, wallClock.el),
+    h(
+      "div",
+      { class: "ledger-panel" },
+      state.mode === "sandbox" ? h("div", { class: "badge", role: "note" }, T(N.sandbox, "badge")) : null,
+      hudDate,
+      hudCount,
+      h("div", { class: "counter", role: "status" }, h("span", {}, `${T(N.ledger, "income")}: `), incomeVal),
+      h("div", { class: "counter", role: "status" }, h("span", {}, `${T(N.ledger, "errors")}: `), errorsVal),
+      note,
+    ),
   );
 
   const nextBtn = h(
@@ -147,24 +161,25 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
       onclick: () => { void callApplicant(); },
     },
     h("span", { class: "push-cap" }, T(N.flow, "next_applicant")),
-    h("span", { class: "push-key", "aria-hidden": "true" }, T(N.flow, "next_applicant_key")),
   );
   const nextWrap = h("div", { class: "next-wrap" }, nextBtn);
 
+  const found = lookupElection(calendar, state.as_of);
+  const signs = buildSigns(found.ok ? found.entry : null, T(N.notes, "no_election"));
   const booth = h(
     "section",
     { class: "booth", "aria-label": T(N.desk, "booth_label") },
     h("img", { class: "seal", src: sealUrl, alt: T(N.desk, "wall_seal") }),
     h("div", { class: "booth-frame" }, glass, h("div", { class: "ledge" })),
     speech,
+    signs.election,
+    signs.bornBefore,
     nextWrap,
     h(
       "div",
       { class: "booth-controls" },
       h("button", { type: "button", class: "small", onclick: () => { sfx("ui_click"); env.exit(); } }, env.exitLabel),
       h("button", { type: "button", class: "small", onclick: () => { sfx("ui_click"); env.openSettings(); } }, T(N.desk, "settings_button")),
-      h("p", { class: "controls-hint" }, T(N.desk, "controls")),
-      h("p", { class: "controls-hint" }, T(N.desk, "move_hint")),
     ),
     hud,
   );
@@ -180,8 +195,34 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
   const letter = buildLetter(state);
   letter.classList.toggle("unprinted", !state.bulletin_delivered);
   addItem(letter, "letter", { x: 10, y: 10 });
-  addItem(buildElection(state), "election", { x: 1040, y: 10 });
-  addItem(buildFlag(), "flag", { x: 1150, y: 362 });
+
+  // The rulebook: a desk item, closed at the start of every shift. Opening it near the desk edge
+  // slides it back inside for as long as it is open (the saved closed position is not changed).
+  const rulebook = createRulebook({
+    activeRuleIds: activeRules(state),
+    notes: env.notes,
+    onNotesChange: env.onNotesChange,
+    sfx: (name) => sfx(name as Sfx),
+    reducedMotion: rm,
+  });
+  addItem(rulebook.el, "rulebook", RULEBOOK_POS);
+  let rulebookHome: { left: string; top: string } | null = null;
+  new MutationObserver(() => {
+    const el = rulebook.el;
+    if (el.classList.contains("is-open") && rulebookHome === null) {
+      rulebookHome = { left: el.style.left, top: el.style.top };
+      el.style.left = `${Math.max(0, Math.min(parseFloat(el.style.left) || 0, STAGE_W - RULEBOOK_OPEN_W))}px`;
+      el.style.top = `${Math.max(0, Math.min(parseFloat(el.style.top) || 0, DESK_H - RULEBOOK_OPEN_H))}px`;
+    } else if (el.classList.contains("is-closed") && rulebookHome !== null) {
+      const home = rulebookHome;
+      rulebookHome = null;
+      const moved = env.layout["rulebook"];
+      if (moved === undefined || `${moved.x}px` === home.left) {
+        el.style.left = home.left;
+        el.style.top = home.top;
+      }
+    }
+  }).observe(rulebook.el, { attributes: true, attributeFilter: ["class"] });
 
   // Stamps
   const stampButton = (kind: Decision): HTMLButtonElement => {
@@ -196,7 +237,6 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
         onclick: () => (approveKind ? doApprove() : doDeny()),
       },
       stampFace(kind),
-      h("span", { class: "key-hint", "aria-hidden": "true" }, T(N.desk, approveKind ? "approve_hint" : "deny_hint")),
     );
   };
   const approveBtn = stampButton("approve");
@@ -239,8 +279,8 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
   const fieldLabel = (field: string): string => T(N.fields, field);
   const sourceText = (src: DocSource): string =>
     fill(T(N.denial, "source_name"), {
-      doc: docTitle(docLayer.find((c) => c.dataset["docId"] === src.doc_id)),
-      field: fieldLabel(src.field),
+      doc: src.doc_type === "residency_declaration" ? T(N.doc_types, "application_form") : docTitle(docLayer.find((c) => c.dataset["docId"] === src.doc_id)),
+      field: src.doc_type === "residency_declaration" && src.field === "address" ? T(N.fields, "residence_address") : fieldLabel(src.field),
     });
 
   // ---- Rendering ----
@@ -251,10 +291,7 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
       : T(N.desk, "no_applicant");
     incomeVal.textContent = formatMoney(state.balance);
     errorsVal.textContent = String(state.errors);
-    clear(ledgerList);
-    for (const line of state.ledger.slice(-6)) ledgerList.append(h("li", {}, line));
-    if (state.ledger.length === 0) ledgerList.append(h("li", { class: "empty" }, T(N.ledger, "empty")));
-    note.textContent = state.note ?? "";
+    note.textContent = evalNote;
   }
 
   function syncControls(): void {
@@ -326,13 +363,17 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     const box = h(
       "div",
       { class: "booth-portrait" },
-      drawPortrait(applicantPortraitSeed(a.application), T(N.desk, "applicant_portrait"), false),
+      drawPortrait(applicantPortraitSeed(a.application), T(N.desk, "applicant_portrait"), false, applicantTraits(a.application, state.as_of)),
     );
     portraitLayer.append(box);
     return box;
   }
 
   // Whole-pixel steps; a 2 px bob on every other step. Reduced motion: the final position at once.
+  // Frames come from requestAnimationFrame, measured against the clock, after the start position
+  // has been committed with a forced layout. (The earlier version chained setTimeout calls from
+  // the same tick that created the portrait, which Firefox could collapse into one paint, so the
+  // portrait seemed to appear and vanish.) A timer backstop finishes the walk in a hidden tab.
   function walk(box: HTMLElement, dir: "in" | "out"): Promise<void> {
     const place = (x: number, y: number): void => { box.style.transform = `translate(${x}px, ${y}px)`; };
     if (rm()) {
@@ -341,22 +382,36 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     }
     const steps = Math.round(WALK_MS / WALK_STEP_MS);
     return new Promise<void>((resolve) => {
-      let i = 0;
-      place(dir === "in" ? -WALK_OFFSET : 0, 0);
-      const tick = (): void => {
-        i += 1;
-        const t = i / steps;
-        const raw = dir === "in" ? -WALK_OFFSET * (1 - t) : WALK_OFFSET * t;
-        const x = Math.round(raw / 4) * 4;
-        place(x, i < steps && i % 2 === 1 ? -2 : 0);
-        if (i >= steps) resolve();
-        else later(tick, WALK_STEP_MS);
+      let finished = false;
+      let last = -1;
+      const finish = (): void => {
+        if (finished) return;
+        finished = true;
+        place(dir === "in" ? 0 : WALK_OFFSET, 0);
+        resolve();
       };
-      later(tick, WALK_STEP_MS);
+      place(dir === "in" ? -WALK_OFFSET : 0, 0);
+      void box.offsetWidth; // commit the start position before the first frame
+      later(finish, WALK_MS + 400);
+      let t0 = -1;
+      const frame = (now: number): void => {
+        if (finished || destroyed) return;
+        if (t0 < 0) t0 = now;
+        const i = Math.min(steps, Math.floor((now - t0) / WALK_STEP_MS));
+        if (i !== last) {
+          last = i;
+          const raw = dir === "in" ? -WALK_OFFSET * (1 - i / steps) : WALK_OFFSET * (i / steps);
+          place(Math.round(raw / 4) * 4, i > 0 && i < steps && i % 2 === 1 ? -2 : 0);
+        }
+        if (i >= steps) finish();
+        else rafId = requestAnimationFrame(frame);
+      };
+      rafId = requestAnimationFrame(frame);
     });
   }
 
   let portraitBox: HTMLElement | null = null;
+  let rafId = 0;
 
   async function callApplicant(): Promise<void> {
     if (phase !== "idle" || !canCallNext(state)) return;
@@ -398,14 +453,14 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     docLayer.length = 0;
     docEls.clear();
     const app = a.application;
+    // The residency declaration is shown inside the form (section 5), not as a separate paper.
     const cards: [string, HTMLElement][] = [["form", renderForm(app)]];
-    if (app.id_document !== null) cards.push(["id", renderCard(app.id_document)]);
-    cards.push(["residency", renderResidency(app.residency_declaration)]);
+    if (app.id_document !== null) cards.push(["id", renderCard(app.id_document, state.as_of)]);
     const shownIds = new Set([app.id_document?.doc_id]);
     app.citizenship_documents.forEach((d, i) => {
       if (shownIds.has(d.doc_id)) return;
       shownIds.add(d.doc_id);
-      cards.push([`cit-${i}`, renderCard(d)]);
+      cards.push([`cit-${i}`, renderCard(d, state.as_of)]);
     });
     cards.forEach(([key, el], i) => {
       desk.append(el);
@@ -536,7 +591,6 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     const instr =
       d.step === "reasons" ? "instruction_reasons" : d.step === "source" ? "instruction_source" : "instruction_ready";
     sheet.append(h("h2", {}, T(N.denial, "heading")), h("p", { class: "sheet-instr" }, T(N.denial, instr)));
-    if (d.step === "source") sheet.append(h("p", { class: "sheet-keys" }, T(N.denial, "instruction_source_keys")));
 
     if (d.step === "reasons") {
       const groups = h("div", { class: "sheet-groups", role: "radiogroup", "aria-label": T(N.denial, "heading") });
@@ -635,7 +689,8 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
         el.dataset["srcField"] = field;
         el.tabIndex = 0;
         el.setAttribute("role", "button");
-        el.setAttribute("aria-label", `${docTitle(card)}: ${fieldLabel(field)}`);
+        const own = el.dataset["srcType"];
+        el.setAttribute("aria-label", `${own === undefined ? docTitle(card) : T(N.doc_types, "application_form")}: ${own === undefined ? fieldLabel(field) : T(N.fields, "residence_address")}`);
       }
     }
   }
@@ -670,8 +725,8 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     const card = t.closest<HTMLElement>(".doc");
     if (card === null || !sourceOn) return;
     const src: DocSource = {
-      doc_id: card.dataset["docId"] ?? "",
-      doc_type: card.dataset["type"] ?? "",
+      doc_id: t.dataset["srcDocId"] ?? card.dataset["docId"] ?? "",
+      doc_type: t.dataset["srcType"] ?? card.dataset["type"] ?? "",
       field: t.dataset["srcField"] ?? "",
     };
     const next = chooseSource(state, src);
@@ -704,10 +759,13 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     state = next;
     if (next.pending !== null) {
       // The engine could not evaluate: the note shows, the form stays on the desk.
+      evalNote = next.note ?? "";
       refresh();
       return;
     }
     phase = "walking_out";
+    evalNote = "";
+    if (next.restart_notice !== null) rulebook.close(); // a restart begins with the book closed
     const n = before.index + 1;
     sfx("paper_drop");
     if (next.errors > before.errors || next.restart_notice !== null) sfx("error_tone");
@@ -725,8 +783,35 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     setBinCount(next.ledger.length);
     env.onState(next);
     refresh();
-    announce(fill(T(N.flow, "announce_filed"), { n }));
+    const slipText = printSlip(before, next, n);
+    announce(`${fill(T(N.flow, "announce_filed"), { n })} ${slipText}`);
     void leave(n);
+  }
+
+  // ---- Decision slip: printed from the bulletin printer, replaced by the next one ----
+  let slip: HTMLElement | null = null;
+
+  function printSlip(before: GameState, next: GameState, n: number): string {
+    const mistake = next.errors > before.errors || next.restart_notice !== null;
+    const decision = before.pending?.decision ?? "approve";
+    const text =
+      next.restart_notice !== null
+        ? fill(T(N.ledger, "slip_restart"), { n })
+        : next.note ?? fill(T(N.ledger, decision === "approve" ? "slip_approved" : "slip_denied"), { n });
+    slip?.remove();
+    const el = h("div", {
+      class: `item slip ${mistake ? "slip-bad" : "slip-good"}`, tabindex: 0, role: "group", "data-material": "paper",
+      "aria-roledescription": T(N.desk, "movable"), "aria-label": T(N.desk, "decision_slip"),
+    }, h("p", { class: "slip-text" }, text));
+    desk.append(el);
+    placeItem(el, "slip", SLIP_POS, deskCtx);
+    slip = el;
+    sfx("bulletin_print");
+    if (!rm()) {
+      el.classList.add("printing-slip");
+      later(() => el.classList.remove("printing-slip"), 950);
+    }
+    return text;
   }
 
   async function leave(n: number): Promise<void> {
@@ -813,6 +898,9 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
     el: root,
     destroy: () => {
       destroyed = true;
+      wallClock.destroy();
+      rulebook.close();
+      cancelAnimationFrame(rafId);
       for (const id of timers) window.clearTimeout(id);
       timers.clear();
       document.removeEventListener("keydown", onKey);
@@ -822,21 +910,18 @@ export function createPlay(initial: GameState, env: PlayEnv): PlayView {
 
 function buildLetter(state: GameState): HTMLElement {
   const b = N.briefing;
-  const ids = activeRules(state);
+  const entries = bulletinEntries(state.shift.shift_id, activeRules(state), state.mode);
   const body = h("div", { class: "letter-body" },
     h("h2", { class: "letter-office" }, b.header),
     h("p", { class: "letter-subject" }, b.subject),
     h("p", {}, fill(b.date_line, { month_year: monthYear(state.as_of) })),
-    h("p", {}, ids.length > 0 ? b.intro : b.no_rules),
+    h("p", {}, entries.length > 0 ? b.intro : NO_NEW_RULES_LINE),
   );
-  for (const id of ids) {
-    const rule = b.rules[id];
-    if (rule === undefined) continue;
-    body.append(h("h3", {}, rule.heading));
-    for (const line of rule.lines) body.append(h("p", { class: line.level === 1 ? "bullet" : "" }, line.level === 1 ? `• ${line.text}` : line.text));
-    if (id === "R3_CITIZENSHIP") {
-      const tribes = (r3Citizenship.params as { participating_tribes: { name: string }[] }).participating_tribes;
-      body.append(h("h4", {}, b.tribes_heading), h("ul", { class: "tribes" }, ...tribes.map((t) => h("li", {}, t.name))));
+  for (const entry of entries) {
+    body.append(h("h3", {}, entry.title));
+    for (const line of entry.body) {
+      const bullet = line.startsWith("• ");
+      body.append(h("p", { class: bullet ? "bullet" : "" }, line));
     }
   }
   body.append(h("p", { class: "closing" }, b.closing));
@@ -844,25 +929,4 @@ function buildLetter(state: GameState): HTMLElement {
     class: "item letter", tabindex: 0, role: "group", "data-material": "paper",
     "aria-roledescription": T(N.desk, "movable"), "aria-label": T(N.desk, "briefing_letter"),
   }, body);
-}
-
-function buildElection(state: GameState): HTMLElement {
-  const found = lookupElection(calendar, state.as_of);
-  const lines = found.ok
-    ? [
-        fill(T(N.desk, "next_election"), { label: found.entry.label, date: formatDate(found.entry.election_date) }),
-        fill(T(N.desk, "registration_closes"), { date: formatDate(found.entry.registration_deadline) }),
-      ]
-    : [T(N.notes, "no_election")];
-  return h("div", {
-    class: "item election", tabindex: 0, role: "group",
-    "aria-roledescription": T(N.desk, "movable"), "aria-label": T(N.desk, "election_display"),
-  }, h("div", { class: "election-month" }, monthYear(state.as_of)), ...lines.map((l) => h("p", {}, l)));
-}
-
-function buildFlag(): HTMLElement {
-  return h("div", {
-    class: "item flag", tabindex: 0, role: "group",
-    "aria-roledescription": T(N.desk, "movable"), "aria-label": T(N.desk, "desk_flag"),
-  }, drawGrid(flagPixels(), 2, "flag-art"));
 }

@@ -1,8 +1,9 @@
 import { guillocheBands, rosettePath, scallopPath, starPoints } from "../game/docstyle";
+import { stateShape } from "../game/stateshape";
 import { h, s } from "./dom";
 
 // Original abstract decoration, drawn from geometric shapes and sine curves. No eagle, flag,
-// state outline, seal or insignia of any real body appears here. Colors come from CSS (currentColor).
+// seal or insignia of any real body appears here; state outlines are simplified polygons. Colors come from CSS (currentColor).
 
 const FACE_W = 226;
 const FACE_H = 168;
@@ -130,3 +131,46 @@ export function sealSvg(lobes = 8): SVGElement {
 export const embossedSeal = (lobes = 8): HTMLElement => h("div", { class: "emboss", "aria-hidden": "true" }, sealSvg(lobes));
 export const sheen = (): HTMLElement => h("span", { class: "sheen", "aria-hidden": "true" });
 export const foil = (): HTMLElement => h("span", { class: "foil", "aria-hidden": "true" });
+
+// A neutral emblem for a state without a drawn outline: a ring around a plain star.
+function genericEmblem(cls: string): SVGElement {
+  return s(
+    "svg",
+    { viewBox: "0 0 40 40", class: cls, "aria-hidden": "true", focusable: "false" },
+    s("circle", { cx: 20, cy: 20, r: 17, fill: "none", stroke: "currentColor", "stroke-width": 2.4 }),
+    s("polygon", { points: starPoints(20, 21, 11, 4.6), fill: "currentColor" }),
+  );
+}
+
+// Emblem shaped like the issuing state (a filled silhouette), or the generic one when no outline exists.
+export function stateEmblem(code: string | null, cls = "emblem state-shape"): SVGElement {
+  const shape = stateShape(code);
+  if (shape === null) return genericEmblem(`${cls} generic`);
+  return s(
+    "svg",
+    { viewBox: shape.viewBox, class: cls, "aria-hidden": "true", focusable: "false", "data-shape": (code ?? "").toUpperCase() },
+    s("path", { d: shape.d, fill: "currentColor", stroke: "currentColor", "stroke-width": 1.2, "stroke-linejoin": "round" }),
+  );
+}
+
+// Outline-only version, for the small mark on the SD back.
+export function stateOutlineMark(code: string | null, cls = "sd-outline"): SVGElement {
+  const shape = stateShape(code);
+  if (shape === null) return genericEmblem(cls);
+  return s(
+    "svg",
+    { viewBox: shape.viewBox, class: cls, "aria-hidden": "true", focusable: "false" },
+    s("path", { d: shape.d, fill: "none", stroke: "currentColor", "stroke-width": 1.8, "stroke-linejoin": "round" }),
+  );
+}
+
+// Passport cover device: a plain five-point star inside two rings. Original; not a seal or eagle.
+export function coverDevice(cls = "cover-device"): SVGElement {
+  return s(
+    "svg",
+    { viewBox: "0 0 60 60", class: cls, "aria-hidden": "true", focusable: "false" },
+    s("circle", { cx: 30, cy: 30, r: 28, fill: "none", stroke: "currentColor", "stroke-width": 1.6 }),
+    s("circle", { cx: 30, cy: 30, r: 23, fill: "none", stroke: "currentColor", "stroke-width": 0.8 }),
+    s("polygon", { points: starPoints(30, 31, 17, 7), fill: "currentColor" }),
+  );
+}

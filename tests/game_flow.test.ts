@@ -239,7 +239,7 @@ describe("filing a denial", () => {
     const s0 = ready(advanceTo(calendarShift("s10"), isDeny));
     const s1 = approve(s0);
     expect(s1.errors).toBe(1);
-    expect(s1.note).toMatch(/^Application \d+ approved\. Condition not met: Rule R\d_[A-Z]+/);
+    expect(s1.note).toMatch(/^Application \d+ approved\. Condition not met: [A-Z][a-z]+/);
   });
 
   for (const plan of ["wrong_reason", "wrong_source"] as DenyPlan[]) {

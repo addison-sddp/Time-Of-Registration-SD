@@ -1,3 +1,4 @@
+import { flagPixels } from "./flagart";
 import { painter, type PixelGrid } from "./pixelart";
 
 // Original pixel art for the empty booth and the completed-forms bin. Pure: indexed grids, no
@@ -5,6 +6,7 @@ import { painter, type PixelGrid } from "./pixelart";
 
 export const BOOTH_W = 88;
 export const BOOTH_H = 52;
+export const FLAG_AT = { x: 11, y: 4 };
 
 // The back wall seen through the booth glass: panelled wall, a dark doorway at each side (the
 // applicant enters at one and leaves at the other), a pinned blank board and a plain wall lamp.
@@ -75,6 +77,15 @@ export function boothScenePixels(): PixelGrid {
   p.rect(64, 9, 69, 11, lampGlow);
   p.put(66, 13, lampDark);
   p.put(67, 13, lampDark);
+
+  // The Sioux Falls flag on a wall rod, left of the board (behind the applicant).
+  const flag = flagPixels();
+  for (let y = 0; y < flag.height; y++) {
+    for (let x = 0; x < flag.width; x++) {
+      const v = flag.pixels[y * flag.width + x] ?? 0;
+      if (v !== 0) p.put(FLAG_AT.x + x, FLAG_AT.y + y, p.color(flag.palette[v] ?? "#000000"));
+    }
+  }
   return p.grid;
 }
 

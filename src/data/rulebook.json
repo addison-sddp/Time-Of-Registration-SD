@@ -1,0 +1,50 @@
+{
+  "cover_title": "Voter Registration Rulebook",
+  "cover_subtitle": "Minnehaha County",
+  "open_label": "Open the rulebook",
+  "close_label": "Close the rulebook",
+  "prev_label": "Previous page",
+  "next_label": "Next page",
+  "page_label": "Page {n} of {total}",
+  "rules_heading": "Rules in effect",
+  "notes_heading": "Notes",
+  "notes_label": "Notes",
+  "notes_placeholder": "",
+  "no_new_rules": "No new rules this month.",
+  "tribes_heading": "Participating tribes:",
+  "rules": {
+    "R1_AGE": {
+      "title": "Age minimum",
+      "body": [
+        "The applicant must be 18 years of age or older on or before the date of the next election.",
+        "{birth_dates}"
+      ],
+      "birth_dates": {
+        "base": "The date of birth on the identity document and the application form must agree.",
+        "with_citizenship": "The date of birth on the identity document, the application form and any citizenship document must agree."
+      }
+    },
+    "R2_RESIDENCY": {
+      "title": "South Dakota address",
+      "body": [
+        "The applicant must list a South Dakota residence address on the application form.",
+        "An application with no residence address listed is incomplete."
+      ]
+    },
+    "R3_CITIZENSHIP": {
+      "title": "Proof of citizenship",
+      "body": [
+        "Tier 1. The applicant presents one of the following original documents. Photocopies are not accepted.",
+        "• A South Dakota driver license that reads \"U.S. Citizen\" on the back.",
+        "• A driver license or nondriver identification card from another state that indicates citizenship has been verified.",
+        "• A tribal identification card issued by a participating tribe, listed below.",
+        "Tier 2. The applicant presents one of the following. Originals and photocopies are accepted.",
+        "• Birth certificate.",
+        "• U.S. passport.",
+        "• Consular report of birth abroad issued by the U.S. Department of State.",
+        "• Certificate of naturalization.",
+        "Expired documents are not accepted. The name on the presented item must match the name on the application."
+      ]
+    }
+  }
+}

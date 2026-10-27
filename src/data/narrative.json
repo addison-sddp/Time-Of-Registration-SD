@@ -17,6 +17,7 @@
     "audio_volume": "Audio volume",
     "mute": "Mute audio",
     "reduced_motion": "Reduced motion",
+    "keyboard_heading": "Keyboard",
     "close": "Close"
   },
   "sandbox": {
@@ -42,21 +43,21 @@
     "tribes_heading": "Participating tribes",
     "rules": {
       "R1_AGE": {
-        "heading": "Rule R1_AGE: Age",
+        "heading": "Age minimum",
         "lines": [
           { "text": "The applicant must be 18 years of age or older on or before the date of the next election.", "level": 0 },
           { "text": "The date of birth on the identity document, the application form and any citizenship document must agree.", "level": 0 }
         ]
       },
       "R2_RESIDENCY": {
-        "heading": "Rule R2_RESIDENCY: Residency",
+        "heading": "South Dakota address",
         "lines": [
-          { "text": "The applicant must list a South Dakota address on the residency declaration.", "level": 0 },
-          { "text": "A residency declaration with no address listed is incomplete.", "level": 0 }
+          { "text": "The applicant must list a South Dakota residence address on the application form.", "level": 0 },
+          { "text": "An application with no residence address listed is incomplete.", "level": 0 }
         ]
       },
       "R3_CITIZENSHIP": {
-        "heading": "Rule R3_CITIZENSHIP: Proof of citizenship",
+        "heading": "Proof of citizenship",
         "lines": [
           { "text": "Tier 1. The applicant presents one of the following original documents. Photocopies are not accepted.", "level": 0 },
           { "text": "A South Dakota driver license that reads \"U.S. Citizen\" on the back.", "level": 1 },
@@ -74,7 +75,13 @@
   },
   "desk": {
     "briefing_letter": "Briefing letter",
-    "election_display": "Election display",
+    "election_display": "Next election sign",
+    "born_before_display": "Birth date cutoff sign",
+    "born_before_heading": "Next Election",
+    "born_before": "Registrants must be born before:",
+    "born_before_sr": "Registrants must be born before {date}.",
+    "wall_clock": "Wall clock: {time}",
+    "decision_slip": "Decision slip",
     "desk_flag": "Desk flag",
     "wall_seal": "Wall seal",
     "movable": "movable desk item",
@@ -105,6 +112,9 @@
     "errors": "Errors",
     "line_approved": "Application {n}: approved",
     "line_denied": "Application {n}: denied",
+    "slip_approved": "Application {n} approved.",
+    "slip_denied": "Application {n} denied.",
+    "slip_restart": "Application {n} filed. Error limit reached for this shift.",
     "line_denied_unconfirmed": "Application {n}: denied, reason not confirmed",
     "empty": "No entries."
   },
@@ -143,7 +153,7 @@
   "reasons": {
     "R1_AGE.no_birth_date": "No date of birth on identity document",
     "R1_AGE.differs": "Date of birth differs between documents",
-    "R1_AGE.below_eligibility": "Below eligibility date for the next election",
+    "R1_AGE.below_eligibility": "Below minimum voter registration age",
     "R2_RESIDENCY.not_sd": "Address state is not South Dakota",
     "R2_RESIDENCY.no_address": "No address listed",
     "R3_CITIZENSHIP.photocopy": "Photocopy presented where original required",
@@ -155,6 +165,7 @@
     "name": "Name",
     "birth_date": "Date of birth",
     "address": "Address",
+    "residence_address": "Residence address",
     "issue_date": "Issue date",
     "expiry_date": "Expiry date",
     "issuing_jurisdiction": "Issuing jurisdiction",
@@ -205,6 +216,7 @@
     "name": "Name",
     "birth_date": "Date of birth",
     "address": "Address",
+    "residence_address": "Residence address",
     "issued": "Issued",
     "expires": "Expires",
     "issued_by": "Issued by",

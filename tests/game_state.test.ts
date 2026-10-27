@@ -1,3 +1,4 @@
+import { ruleTitle } from "../src/game/ruletext";
 import { describe, expect, test } from "vitest";
 import { calendar, economy, narrative, shifts } from "../src/data";
 import { evaluate } from "../src/engine/evaluate";
@@ -98,7 +99,7 @@ describe("decide", () => {
     expect(s1.balance).toBe(14 - economy.penalty_per_error);
     expect(s1.index).toBe(3);
     if (dec === "approve") {
-      expect(s1.note).toMatch(/^Application 3 approved\. Condition not met: Rule R\d_[A-Z]+(, Rule R\d_[A-Z]+)*\.$/);
+      expect(s1.note).toMatch(/^Application 3 approved\. Condition not met: [A-Z][A-Za-z ]+(, [A-Z][A-Za-z ]+)*\.$/);
     } else {
       expect(s1.note).toBe("Application 3 denied. All active rules satisfied.");
     }
@@ -121,7 +122,7 @@ describe("decide", () => {
           const r = evaluate(a.application, s.as_of, calendar, rules, s.activation);
           const ids = r.ok ? r.value.violated_rule_ids : [];
           const after = decide(s, "approve");
-          expect(after.note).toBe(`Application ${s.index + 1} approved. Condition not met: ${ids.map((i) => `Rule ${i}`).join(", ")}.`);
+          expect(after.note).toBe(`Application ${s.index + 1} approved. Condition not met: ${ids.map((i) => ruleTitle(i)).join(", ")}.`);
           return;
         }
         s = decide(s, right(s));

@@ -1,10 +1,10 @@
-import { portraitParams, portraitPixels } from "../game/portrait";
+import { portraitParams, portraitPixels, type PortraitTraits } from "../game/portrait";
 import { s } from "./dom";
 
 // Draws the pixel grid as <rect>s (horizontal runs of one colour) with crisp edges. The
 // view box is the grid itself, so the CSS box must be an integer multiple of 32 x 40.
-export function drawPortrait(seed: number, label: string, backdrop = true): SVGElement {
-  const g = portraitPixels(portraitParams(seed), { backdrop });
+export function drawPortrait(seed: number, label: string, backdrop = true, traits?: PortraitTraits): SVGElement {
+  const g = portraitPixels(portraitParams(seed, traits), { backdrop });
   const svg = s("svg", {
     viewBox: `0 0 ${g.width} ${g.height}`,
     role: "img",

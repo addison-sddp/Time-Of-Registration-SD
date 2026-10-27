@@ -1,5 +1,7 @@
 # Pending owner requests (build-5)
 
+STATUS (2026-10-27): build-5 is implemented, pending the owner's play-test. Items 1-25 are DONE except 15 (deferred). Item 26 has a proposal in `docs/PROPOSAL_RULE_SCHEDULE.md`. Notable notes are on the items below.
+
 Saved 2026-10-27 at the owner's request, to start after the usage limit resets (2:10 AM, Tuesday,
 October 27). Nothing here is started. The build-4 work (audio, art, shift flow) is committed
 (449e99b). Follow the working agreement in HANDOFF.md.
@@ -9,39 +11,39 @@ described in words below.
 
 ## Audio
 
-1. The random ambient "phone ringing" sound should sound clearly like a phone ringing. The other random
+1. DONE in build-5. The random ambient "phone ringing" sound should sound clearly like a phone ringing. The other random
    ambient sounds (chair creak, vent whoosh, fluorescent tick) are not recognizable either; make each one
    clearly what it is.
-2. Never play two ambient cues at once. The phone ring sometimes doubled up.
-3. Make ambient cues less frequent (currently every 8-25 s).
-4. Shift transitions: fade into and out of the shift summary screen. When a new day starts after the
+2. DONE in build-5. Never play two ambient cues at once. The phone ring sometimes doubled up.
+3. DONE in build-5. Make ambient cues less frequent (currently every 8-25 s).
+4. DONE in build-5. Shift transitions: fade into and out of the shift summary screen. When a new day starts after the
    player presses Continue, play a car ignition starting, as if driving to work.
 
 ## Controls
 
-5. The game is presented as point-and-click. Remove the key-control description text from the play
+5. DONE in build-5. The game is presented as point-and-click. Remove the key-control description text from the play
    screen and leave that space blank. OWNER DECISION (confirmed): KEEP the keyboard capability in the
    game, but don't advertise it. List the keybinds only in the Settings menu, with no other prompts or
    hints. Record this in DESIGN 7.5.
-6. Dragging the bulletin selects (highlights) its text. Players must not be able to select text on desk
+6. DONE in build-5. Dragging the bulletin selects (highlights) its text. Players must not be able to select text on desk
    items.
 
 ## Bulletin and rulebook
 
-7. The bulletin describes only the NEW rules for that month or level.
-8. Add a RULEBOOK the player can open, containing ALL active rules. It starts CLOSED each day until the
+7. DONE in build-5. The bulletin describes only the NEW rules for that month or level.
+8. DONE in build-5. Add a RULEBOOK the player can open, containing ALL active rules. It starts CLOSED each day until the
    player opens it. Put the Minnehaha County seal (the existing original fictional seal) on its cover.
    After the rules, add a notes page where the player can type free plaintext notes, styled like standard
    ruled notebook paper.
    - Notes need to persist. That needs a save field: optional, or a v2 migration per DESIGN 6.5.
-9. Rule wording is simpler and immersive. No "Rule R1_AGE: Age" headings. Use a plain bold title such as
+9. DONE in build-5. Rule wording is simpler and immersive. No "Rule R1_AGE: Age" headings. Use a plain bold title such as
    "Age minimum" with a simplified description under it in regular type.
-10. On days when proof of citizenship is not required (before April 2026), the age rule text must not
+10. DONE in build-5. On days when proof of citizenship is not required (before April 2026), the age rule text must not
     mention citizenship documents. Rule text must fit only what that day requires.
 
 ## Desk layout
 
-11. Move the "Next election" display to the space right of the booth window, above the Next applicant
+11. DONE in build-5. Move the "Next election" display to the space right of the booth window, above the Next applicant
     button, where the owner marked a red box. That box holds a sign reading "Next Election", with a
     retro clock-style readout at its bottom: black background, red digits, showing the election date.
     Under it (the owner's blue box with a red border), add a sign: "Registrants must be born before:
@@ -49,12 +51,12 @@ described in words below.
     the cutoff (election date minus 18 years), so for "before" to be exact, the sign shows the cutoff
     plus one day. Example: cutoff 2008-06-02 displays "born before June 3, 2008". Compute it from the
     calendar, never hardcoded. Add a test that the displayed date and R1 agree at the boundary.
-12. Remove the ledger list. Feedback after each filed decision comes as a slip printed from the bulletin
+12. DONE in build-5. Remove the ledger list. Feedback after each filed decision comes as a slip printed from the bulletin
     printer: light red for a mistake, light green for a correct decision.
-13. In the ledger's old spot (top right), add a decorative analog wall clock (hands, numbers 1-12) showing
+13. DONE in build-5. In the ledger's old spot (top right), add a decorative analog wall clock (hands, numbers 1-12) showing
     the player's real local time of day.
-14. Make the Sioux Falls desk flag bigger, and have it hang limp and freely (no wind) rather than waving.
-15. The income counter has no purpose. Add stakes that make the player want correct answers, and
+14. DONE in build-5. Make the Sioux Falls desk flag bigger, and have it hang limp and freely (no wind) rather than waving.
+15. DEFERRED (owner decision). The income counter has no purpose. Add stakes that make the player want correct answers, and
     something to spend income on.
     - OWNER DECISION: DEFERRED to the run AFTER build-5. Do not build it in build-5. The owner has a list
       of options (see "Income and stakes options" at the end of this file) to choose from first. This
@@ -62,9 +64,9 @@ described in words below.
 
 ## Documents
 
-16. Voter registration application: the "V" in the title is cut off by the folded top-right corner. Keep
+16. DONE in build-5. Voter registration application: the "V" in the title is cut off by the folded top-right corner. Keep
     the fold; move or fit the text.
-17. Make the voter registration application look more like the real South Dakota form (one owner
+17. DONE in build-5. Make the voter registration application look more like the real South Dakota form (one owner
     screenshot). That form is a full letter-size page with numbered sections down the left:
     1. Eligibility (two yes/no questions)
     2. Birthdate
@@ -80,21 +82,22 @@ described in words below.
       stand-ins: gray boxes or lines where text would go.
     - Originality: do NOT reproduce the real state seal, form number, statute citations or exact text;
       match the general layout and paper size only.
-18. Text overlaps on the SD license front: the expiration date runs into "SD" under Issued by. The
+18. DONE in build-5. Text overlaps on the SD license front: the expiration date runs into "SD" under Issued by. The
     license back has overlaps too: the tiny digit string sits on top of the barcode (owner circled it).
     The owner's screenshot of the back showed "RESTR: NONE" and "CLASS: D", not the specified SD back
     layout. Check which back is rendering for SD licenses versus other-state cards, and fix it.
-19. The emblem at the top left of each driver's license should be an icon shaped like the issuing state.
+    - Status: root cause was that the generic license back is the other-state back; it is not used for SD licenses (not reproduced for SD). Overlaps fixed.
+19. DONE in build-5. The emblem at the top left of each driver's license should be an icon shaped like the issuing state.
     SD shows a South Dakota outline, not the three yellow bars. Other states get their own state outline.
-20. The U.S. passport should look like a passport book. The player must open it to see the data page.
-21. Denial checklist: change "Below eligibility date for the next election" to "Below minimum voter
+20. DONE in build-5. The U.S. passport should look like a passport book. The player must open it to see the data page.
+21. DONE in build-5. Denial checklist: change "Below eligibility date for the next election" to "Below minimum voter
     registration age".
 
 ## Applicants and portraits
 
-22. Some hair looks wrong. One example: hair spiking straight up out of the head in thin spikes, on a
+22. DONE in build-5. Some hair looks wrong. One example: hair spiking straight up out of the head in thin spikes, on a
     woman with long braids. Fix the hair generator so locks fall naturally.
-23. Applicants' appearance should match their documents:
+23. DONE in build-5. Applicants' appearance should match their documents:
     - Sex: female applicants USUALLY look female and male applicants USUALLY look male, with room for
       variation. OWNER DECISION (confirmed): build an explicit sex field.
       - Add `sex: "M" | "F" | null` to the Document type and generate it per applicant.
@@ -107,14 +110,22 @@ described in words below.
     - Age: one example was a 91-year-old on the license who looked young. The portrait must reflect the
       birth date: gray or white hair, wrinkles, a softer jaw for older people; younger looks for young
       ones.
-24. Use real South Dakota city and town names in addresses. Street names and numbers stay fictional.
+24. DONE in build-5. Use real South Dakota city and town names in addresses. Street names and numbers stay fictional.
     Other-state addresses can stay fictional. Check that the ZIPs stay plausible.
-25. In Firefox, applicants have no walk-in or walk-out animation; they just appear and vanish. Fix it
+25. DONE in build-5. In Firefox, applicants have no walk-in or walk-out animation; they just appear and vanish. Fix it
     across browsers and test in Firefox.
+    - Status: not reproduced in Firefox 159; hardened with requestAnimationFrame stepping. Owner to confirm on their machine.
+
+## Post-build owner feedback (all DONE in build-5)
+
+- DONE: the rulebook would not close; fixed.
+- DONE: too many documents on the desk; fixed (before R3 only an identity document, occasional distractor).
+- DONE: the flag moved to the booth back wall, hanging from a rod.
+- DONE: the analog clock is on the wall, with a compact ledger panel below it.
 
 ## Progression
 
-26. Moving from one level to the next adds no new requirement. Today only R3 (April 2026) is introduced
+26. PROPOSAL DRAFTED (docs/PROPOSAL_RULE_SCHEDULE.md); awaiting owner design input. Moving from one level to the next adds no new requirement. Today only R3 (April 2026) is introduced
     after October.
     - Needs owner design input. Ask which rules come in which month before building. Per DESIGN 1.3 and
       Part B, rules and their sources come from the owner.

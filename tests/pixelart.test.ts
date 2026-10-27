@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { FLAG_H, FLAG_W, flagPixels } from "../src/game/flagart";
+import { FLAG_AT, boothScenePixels } from "../src/game/boothart";
 import { FACE_SHAPES, faceMetrics, portraitParams, portraitPixels, rampColors } from "../src/game/portrait";
 import { IMPRESSION_SIZE, STAMP_BODY_SIZE, impressionPixels, impressionShape, stampBodyPixels, type StampKind } from "../src/game/stampart";
 import type { PixelGrid } from "../src/game/pixelart";
@@ -63,16 +64,16 @@ describe("face shapes", () => {
   });
 });
 
-describe("desk flag sprite", () => {
+describe("wall flag sprite", () => {
   test("is deterministic, on the grid, with a bounded palette", () => {
     const a = flagPixels();
     expect(a).toEqual(flagPixels());
     expect(a.width).toBe(FLAG_W);
     expect(a.height).toBe(FLAG_H);
-    expect(FLAG_W).toBeGreaterThanOrEqual(40);
-    expect(FLAG_W).toBeLessThanOrEqual(48);
-    expect(FLAG_H).toBeGreaterThanOrEqual(64);
-    expect(FLAG_H).toBeLessThanOrEqual(72);
+    expect(FLAG_W).toBeGreaterThanOrEqual(18);
+    expect(FLAG_W).toBeLessThanOrEqual(26);
+    expect(FLAG_H).toBeGreaterThanOrEqual(14);
+    expect(FLAG_H).toBeLessThanOrEqual(24);
     checkGrid(a);
     expect(a.palette.length).toBeLessThan(40);
   });
@@ -80,12 +81,18 @@ describe("desk flag sprite", () => {
     const pal = flagPixels().palette;
     for (const c of ["#1269B2", "#C63843", "#EFB71B", "#FFFFFF"]) expect(pal).toContain(c);
   });
-  test("pole and base are present: top rows narrow, bottom rows wide", () => {
+  test("a rod spans the top; the hem is lower in the middle than at the edges", () => {
     const g = flagPixels();
-    const count = (y: number): number => { let n = 0; for (let x = 0; x < g.width; x++) if (g.pixels[y * g.width + x] !== 0) n++; return n; };
-    expect(count(0)).toBeLessThanOrEqual(3);
-    expect(count(40)).toBeLessThan(count(61));
-    expect(count(61)).toBeGreaterThanOrEqual(20);
+    const filled = (x: number, y: number): boolean => g.pixels[y * g.width + x] !== 0;
+    for (let x = 0; x < g.width; x++) expect(filled(x, 0)).toBe(true);
+    const bottom = (x: number): number => { let y = g.height - 1; while (y > 0 && !filled(x, y)) y--; return y; };
+    expect(bottom(Math.floor(g.width / 2))).toBeGreaterThan(bottom(2));
+  });
+  test("the booth scene carries the flag, inside its grid", () => {
+    const scene = boothScenePixels();
+    expect(scene.palette).toContain("#EFB71B");
+    expect(FLAG_AT.x + FLAG_W).toBeLessThanOrEqual(33); // left of the board
+    expect(FLAG_AT.y + FLAG_H).toBeLessThanOrEqual(34); // above the wainscot
   });
 });
 

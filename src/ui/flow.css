@@ -10,6 +10,13 @@
 .item.printing { animation: bulletin-print 2.2s steps(22, end) backwards; }
 @keyframes bulletin-print { from { transform: translateY(-500px); } to { transform: translateY(0); } }
 
+/* Decision slip, printed from the same slot: light red for a mistake, light green when correct */
+.slip { width: 230px; padding: 8px 10px; border: 2px solid var(--ink-black); box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35); }
+.slip-good { background: #CDEBCB; border-color: #3E6B3C; }
+.slip-bad { background: #F6CBC6; border-color: #8C2F2B; }
+.slip-text { margin: 0; font-weight: bold; }
+.slip.printing-slip { animation: bulletin-print 0.9s steps(12, end) backwards; }
+
 /* Next applicant: a chunky push button that slides up from below the booth edge */
 .next-wrap { position: absolute; left: 700px; top: 208px; width: 280px; height: 78px; overflow: hidden; }
 .push-button {
@@ -26,7 +33,6 @@
 }
 .push-button:hover .push-cap { background: #C24C38; }
 .push-button:active .push-cap { transform: translateY(6px); }
-.push-key { font-size: 0.55em; border: 2px solid #F6F0DF; padding: 0 0.5em; }
 .push-button.away { transform: translateY(84px); visibility: hidden; transition: transform 0.35s steps(7, end), visibility 0s 0.35s; }
 .push-button:focus-visible { clip-path: none; outline: 3px solid var(--muted-gold); outline-offset: 2px; }
 
@@ -45,7 +51,7 @@
 @keyframes ink-land { from { transform: scale(1.3); opacity: 0; } }
 
 /* Completed forms bin */
-.bin { position: absolute; left: 1046px; top: 296px; width: 192px; height: 72px; }
+.bin { position: absolute; left: 1046px; top: 232px; width: 192px; height: 72px; }
 .bin-art { display: block; image-rendering: pixelated; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.3)); }
 .bin-stack {
   position: absolute; left: 12px; width: 168px; bottom: 33px; background: var(--paper-cream);
@@ -60,12 +66,11 @@
 /* Denial reasons sheet */
 .sheet {
   width: 320px; max-height: 470px; overflow-y: auto; background: #F3EEDB; padding: 10px 12px; z-index: 3000;
-  border: 2px solid var(--ink-black); box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35); font-size: 0.92em; user-select: text;
+  border: 2px solid var(--ink-black); box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35); font-size: 0.92em;
 }
 .sheet h2 { font-size: 1.05em; margin: 0 0 4px; text-align: center; color: var(--brick-red); border-bottom: 2px double var(--brick-red); padding-bottom: 4px; }
 .sheet h3 { font-size: 0.95em; margin: 8px 0 2px; }
 .sheet p { margin: 3px 0; }
-.sheet .sheet-keys { font-size: 0.85em; opacity: 0.8; }
 .sheet .reason {
   display: flex; align-items: flex-start; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0;
   border-bottom: 1px dotted #7A7461; padding: 3px 2px;

@@ -24,6 +24,8 @@ Every design decision is recorded there (sections 11 and 12).
 | 1 | Scaffold, pure rule engine, R1–R3, calendar, shifts and economy data, tests | Done, approved 2026-10-27 |
 | 2 | Seeded applicant generator (`src/gen`), save layer (`src/save`), tests | Done, approved 2026-10-27 |
 | 3 | Playable DOM/CSS screen (`src/ui`), sandbox mode, audio, assets | Done, approved 2026-10-27 |
+| 4 | Audio, pixel desk art, new shift flow (denial reasons, bin, Next applicant) | Done, approved and committed (449e99b) |
+| 5 | Owner fix list items 1-25 except 15 (audio cues and ignition, bulletin and rulebook, signs, slips, wall clock and flag, form and license art, passport book, sex field and portraits, SD cities, Firefox walk) plus post-build feedback | Done, pending owner play-test; approved 2026-10-27 (uncommitted at time of writing) |
 
 Commands: `npm install`, `npm test`, `npm run typecheck`, `npm run build`, `npm run dev`.
 
@@ -61,8 +63,12 @@ Commands: `npm install`, `npm test`, `npm run typecheck`, `npm run build`, `npm 
 
 ## Next up
 
-`docs/PENDING_REQUESTS.md` holds the owner's build-5 fix list (saved 2026-10-27), with open questions
-to ask first. Build-4 (audio, art, shift flow) is approved and committed (449e99b).
+Build-5 is implemented and awaits the owner's play-test (see `docs/PENDING_REQUESTS.md` for the item-by-item
+status). Owner decisions pending before the next build:
+
+- Item 15 (income and stakes): choose from the options at the end of `docs/PENDING_REQUESTS.md`.
+- Item 26 (rule schedule): review the proposal in `docs/PROPOSAL_RULE_SCHEDULE.md`; the owner supplies which rules arrive in which months.
+- Approve the rulebook and bulletin wording (`src/data/rulebook.json`).
 
 ## Pending owner items (not blocking)
 
@@ -70,5 +76,7 @@ to ask first. Build-4 (audio, art, shift flow) is approved and committed (449e99
 - Stage 3 placeholders: Rev. dates and
   SD Class text in `narrative.json`; s05 scripted applicant's name and address; seal resemblance check;
   fine-print legibility.
+- Build-5 play-test: verify the SD city ZIPs in `SD_PLACES` (`src/gen/content.ts`); confirm the Firefox walk-in and walk-out animation on the owner's machine (item 25 was not reproduced in Firefox 159 and was hardened); listen to the audio (ambient cues, car ignition, fades); look at the portraits, the booth-wall flag, the wall clock and the voter registration form.
+- `DOC_COPY` strings in `src/ui/documents.ts` are not yet in `narrative.json`.
 - Verification checklist (DESIGN section 10) and legal-review flags (section 13) before any
   public release. The SB 175 statutory text is still unchecked against the enacted law.

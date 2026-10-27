@@ -33,6 +33,12 @@ export function placeItem(el: HTMLElement, key: string, def: { x: number; y: num
   };
 
   el.addEventListener("focus", raise);
+  // Dragging must never highlight text. selectstart is cancelled rather than pointerdown, so focus
+  // and clicks are unaffected; text entry controls keep normal selection.
+  el.addEventListener("selectstart", (e) => {
+    if (!(e.target as HTMLElement | null)?.closest?.("textarea, input")) e.preventDefault();
+  });
+  el.addEventListener("dragstart", (e) => e.preventDefault());
 
   el.addEventListener("pointerdown", (e) => {
     if ((e.target as HTMLElement).closest("button, input, select, a, .src-target")) return;

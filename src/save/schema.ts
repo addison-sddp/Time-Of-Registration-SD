@@ -40,6 +40,15 @@ export interface SaveV1 {
   desk_layout: Record<string, { x: number; y: number }>;
   decision_log: DecisionLogEntry[];
   flags: Record<string, boolean>;
+  // Optional (build 5): free plaintext notes from the rulebook notes page. Older saves have none.
+  notes?: string;
+}
+
+export const NOTES_MAX_CHARS = 4000;
+
+// Returns a copy of the save with the notes set (truncated to the limit). Pure.
+export function withNotes(save: SaveV1, text: string): SaveV1 {
+  return { ...save, notes: text.slice(0, NOTES_MAX_CHARS) };
 }
 
 // The caller supplies both values, so this stays free of clocks and randomness.
@@ -100,6 +109,17 @@ function isLogEntry(v: unknown): v is DecisionLogEntry {
 }
 
 // Shape check only: does this parsed value have every SaveV1 field with the right type.
+// Notes are optional: a non-string value is dropped and an overlong one truncated, never a load failure.
+export function sanitizeNotes(v: Obj): void {
+  const n = v["notes"];
+  if (n === undefined) return;
+  if (isStr(n)) {
+    if (n.length > NOTES_MAX_CHARS) v["notes"] = n.slice(0, NOTES_MAX_CHARS);
+  } else {
+    delete v["notes"];
+  }
+}
+
 export function isSaveV1(v: unknown): v is SaveV1 {
   if (!isObj(v) || v["schema_version"] !== 1) return false;
   const { progress, economy: eco, settings } = v;

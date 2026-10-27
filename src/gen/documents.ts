@@ -1,5 +1,5 @@
-import type { Document, DocumentType, ISODate } from "../engine/types";
-import { BIRTH_STATE_CODES, CITIES, STREET_NAMES, STREET_SUFFIXES, type UsState } from "./content";
+import type { Document, DocumentType, ISODate, Sex } from "../engine/types";
+import { BIRTH_STATE_CODES, CITIES, SD_PLACES, STREET_NAMES, STREET_SUFFIXES, type UsState } from "./content";
 import { addDays, addYears, maxDate, minDate, randomDate } from "./dates";
 import type { Rng } from "./rng";
 import type { GenContext } from "./types";
@@ -12,6 +12,7 @@ export interface Env {
   ctx: GenContext;
   birth: ISODate;
   portrait: number;
+  sex: Sex;
 }
 
 export interface Address {
@@ -28,12 +29,13 @@ export type Tier2Type =
   | "certificate_of_naturalization";
 
 export function makeAddress(rng: Rng, state: UsState): Address {
-  return {
-    line: `${rng.int(100, 9899)} ${rng.pick(STREET_NAMES)} ${rng.pick(STREET_SUFFIXES)}`,
-    city: rng.pick(CITIES),
-    state: state.code,
-    postal: String(rng.int(state.zip_lo, state.zip_hi)),
-  };
+  const line = `${rng.int(100, 9899)} ${rng.pick(STREET_NAMES)} ${rng.pick(STREET_SUFFIXES)}`;
+  if (state.code === "SD") {
+    // Real South Dakota places; the street and number stay invented.
+    const place = rng.weighted(SD_PLACES.map((p) => [p, p.weight] as const));
+    return { line, city: place.city, state: "SD", postal: rng.pick(place.zips) };
+  }
+  return { line, city: rng.pick(CITIES), state: state.code, postal: String(rng.int(state.zip_lo, state.zip_hi)) };
 }
 
 function blank(doc_id: string, type: DocumentType): Document {
@@ -47,6 +49,7 @@ function blank(doc_id: string, type: DocumentType): Document {
     citizenship_verified_marker: null,
     name: null,
     birth_date: null,
+    sex: null,
     address_line: null,
     address_city: null,
     address_state: null,
@@ -125,6 +128,7 @@ export function sdLicense(
       citizenship_verified_marker: kind === "new",
       name,
       birth_date: env.birth,
+      sex: env.sex,
       portrait_seed: env.portrait,
     },
     addr,
@@ -149,6 +153,7 @@ export function otherStateLicense(
       citizenship_verified_marker: opts.marker,
       name,
       birth_date: env.birth,
+      sex: env.sex,
       portrait_seed: env.portrait,
     },
     addr,
@@ -181,6 +186,7 @@ export function tribalId(
       issuing_jurisdiction: opts.tribe_key,
       name,
       birth_date: env.birth,
+      sex: env.sex,
       portrait_seed: env.portrait,
     },
     addr,
@@ -209,7 +215,7 @@ export function tier2Document(
   opts: { photocopy: boolean; expired: boolean },
 ): Document {
   const { rng, ctx } = env;
-  const base = { ...blank(doc_id, type), is_photocopy: opts.photocopy, name, birth_date: env.birth };
+  const base = { ...blank(doc_id, type), is_photocopy: opts.photocopy, name, birth_date: env.birth, sex: env.sex };
   switch (type) {
     case "us_passport": {
       const span = passportSpan(env, opts.expired);

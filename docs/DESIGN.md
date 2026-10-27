@@ -78,14 +78,29 @@ PROPOSAL: shifts are defined in `shifts.json` with `{ shift_id, shift_date, scri
 ### 2.3 Core loop
 
 ```
-Applicant arrives
-  -> player inspects: identity document, residency declaration, proof-of-citizenship documents
-  -> player consults: briefing letter (rules), election display ("Next election: <label>, <date>")
-  -> player decides: APPROVE stamp or DENY stamp
-  -> consequence shown (see 2.5)
-  -> next applicant, or shift end
-Shift end: summary of applications processed and errors made
+Shift starts: the bulletin prints (new rules only); the rulebook is on the desk, closed
+Player presses "Next applicant" -> the applicant walks in to the booth window
+  -> player inspects: voter registration form, identity document, citizenship documents
+  -> player consults: bulletin, rulebook, "Next Election" and "born before" signs
+  -> player decides:
+       APPROVE: the stamp lands on the voter registration form
+       DENY: a denial-reason checklist opens; the player picks the reason, then, when the
+             reason points at a document, clicks the part of that document that shows it;
+             then the DENY stamp lands on the form
+  -> the decision is final when the form is dropped in the "Completed forms" bin
+  -> the applicant walks out; a slip prints from the bulletin printer (see 2.5)
+  -> "Next applicant", or shift end
+Shift end: summary screen (2.7)
 ```
+
+Applicants are called one at a time by the "Next applicant" button; none arrives on its own. Stamps are applied to the voter registration form, not to a ledger line. Until the form is in the bin the decision can still be changed; after that it is recorded and cannot be undone.
+
+#### 2.3.1 Bulletin and rulebook
+
+- The bulletin lists only the rules that are new that shift. In calendar mode "new" means active this shift and not active at the previous shift; for the first shift and in sandbox mode, all active rules are new. When there are none, the bulletin reads "No new rules this month."
+- The Rulebook is a desk item with a cover bearing the original fictional Minnehaha County seal. It is closed at the start of every shift and stays closed until the player opens it. Inside, it lists every active rule with a plain bold title (for example "Age minimum", never the rule id) and a short description in regular type, followed by a ruled notes page (standard lined notebook paper) where the player can type free plaintext notes. The notes text persists in the save (6.4).
+- The wording depends on which rules are active, so a rule never mentions something not yet required. Example: R1's birth-date line mentions citizenship documents only when R3 is active.
+- Source of copy: `src/data/rulebook.json` (text) and `src/game/ruletext.ts` (selection by active rule set). The wording is a draft pending owner approval.
 
 ### 2.4 Applicant generation (PROPOSAL)
 
@@ -94,25 +109,28 @@ Shift end: summary of applications processed and errors made
 - Applicant order is seeded by `hash(save_salt, shift_id, attempt_number)`. Restarting a shift after three errors replays the same applicants in a shuffled order (owner decision, Q10).
 - An optional per-applicant `pinned_position` in the shift data (for example the person who leaves the newspaper) is never shuffled. The remaining applicants are shuffled into the remaining positions.
 - Rationale: a restart is a retry of a known set, so tests are reproducible, while the shuffled order keeps a retry from being a memorized sequence.
-- Addresses are fictional street addresses. Tribal ID documents use real tribe names from the owner-supplied list only (Q31), including some not on the participating list so that denials occur; test fixtures may use neutral placeholder keys that never appear in the game.
+- Document mix: before R3 is active, applicants present only an identity document (mostly an SD driver license) and an empty `citizenship_documents` list, with an occasional distractor (about 6%). After R3 is active, the proof logic applies, with reduced clutter.
+- SD addresses use real South Dakota city and town names with a representative ZIP code per city (list: `SD_PLACES` in `src/gen/content.ts`). The ZIPs are unverified; the owner is to verify them. Street names and numbers are fictional. Other-state addresses stay fictional.
+- Tribal ID documents use real tribe names from the owner-supplied list only (Q31), including some not on the participating list so that denials occur; test fixtures may use neutral placeholder keys that never appear in the game.
 - The generator produces an intended applicant profile (for example "fails Rule 2 only") and renders documents from it. The profile is a generation input only. At runtime the ground truth verdict is always computed by the rule engine from the finished `Application` (section 3.6). The generator's intent is checked against the engine only in tests (section 3.9).
 
 ### 2.5 Consequence display
 
-Neutral and minimal. After a decision the applicant leaves; a small ledger line records "Application N: approved/denied". On a correct decision the income counter updates. On an error the error counter increments and a procedural note is shown, for example "Application 4 approved. Condition not met: Rule R3." No explanation of why.
+Neutral and minimal. There is no ledger list. After each filed form, a slip prints from the bulletin printer and replaces the previous slip. A correct decision prints a light green slip; a mistake prints a light red slip. A slip names the rule only by its rulebook title and never explains why, for example "Application 4 approved. Condition not met: Age minimum." The free pass in 2.6 prints a neutral slip noting the reason was not confirmed. The money counter is retained for now; its purpose is open (6.3, PENDING item 15).
 
 ### 2.6 Definition of "error"
 
 An error occurs when:
 
 - the player approves an application that fails any active rule, or
-- the player denies an application that passes all active rules.
+- the player denies an application that passes all active rules, or
+- the player correctly denies an application but the stated reason, or the clicked document part, does not match a failure the engine found, and this is not the first such case. The first correct denial with a wrong reason or source in a shift attempt is free (no error, no penalty; the slip says so). Each later one is an error.
 
-The engine returns a verdict and the list of violated rule IDs. The UI compares the player's decision to that verdict. The UI never re-derives rule logic.
+The engine returns a verdict and the list of violated rule IDs and conditions. The UI compares the player's decision to that verdict; `src/game/reasons.ts` grades the stated reason and source against the engine's conditions. The UI never re-derives rule logic.
 
 ### 2.7 Shift end
 
-Summary screen: applications processed, correct decisions, errors, earnings (section 6). No evaluative text. On a three-error removal, the summary reads as a plain record: "Shift not completed. Errors: 3." and the shift restarts.
+Summary screen: applications processed, correct decisions, errors, earnings (section 6). No evaluative text. The summary fades in from black and fades out when the player continues. On a three-error removal, the summary reads as a plain record: "Shift not completed. Errors: 3." and the shift restarts.
 
 ---
 
@@ -202,6 +220,7 @@ interface Document {
   citizenship_verified_marker: boolean | null;  // meaningful for SD licenses issued on or after 2025-07-01 and for other-state licenses/IDs
   name: string | null;                       // as printed
   birth_date: ISODate | null;
+  sex: "M" | "F" | null;                     // build 5; see notes
   address_line: string | null;
   address_city: string | null;
   address_state: string | null;              // 2-letter code as printed
@@ -222,7 +241,9 @@ interface Application {
 
 Notes:
 
-- All addresses are fictional street addresses (line, city, state, postal code).
+- Addresses are (line, city, state, postal code). SD addresses use real SD city names with representative ZIPs; street names and numbers are fictional (2.4).
+- `sex` is generated per applicant and is identical across all of one applicant's documents. It is printed on identity documents (licenses, IDs, tribal ID, passport) and read by the portraits for presentation, with some variation allowed. No rule reads it and none may declare it in `applies_to`. First names are drawn from sex-matched lists.
+- The residency declaration is no longer a separate paper on the desk. Its address is shown in section 5, "Residence address", of the voter registration form. OWNER DECISION 2026-10-27 (record wording): "The declaration of residency is inherent when a voter signs & submits the voter registration form in real life." The data model keeps `residency_declaration`.
 - There is deliberately no field anywhere recording how many nights the applicant sleeps in South Dakota (see 4.2).
 - Name comparison policy (PROPOSAL): case-insensitive, whitespace-collapsed, punctuation-insensitive equality. Nicknames, initials-only, and maiden/married name differences are mismatches in the MVP. Mismatches are grounds to deny (owner decision, Q14).
 
@@ -377,7 +398,7 @@ source: { citation: "UNSOURCED (owner: South Dakota codified law, verify citatio
 verified: false
 ```
 
-Condition strings (neutral, procedural; returned in `CheckResult.details.condition` and substituted into `{condition}`):
+Condition strings (neutral, procedural; returned in `CheckResult.details.condition` and substituted into `{condition}`). The engine strings are unchanged in build 5; the player-facing denial-checklist label for the first condition is "Below minimum voter registration age":
 
 - "below eligibility date for the next election ({next_election_date})"
 - "differs between documents"
@@ -524,7 +545,7 @@ Federal cross-reference: the owner's note says the federal reference appears to 
 
 ## 5. Election calendar table
 
-Data file `calendar.json`. Rules, notes, and in-game displays (including the desk's analog "Next election" display) read from it. No election date appears in rule code.
+Data file `calendar.json`. Rules, notes, and in-game displays (including the booth wall's "Next Election" and "born before" signs) read from it. No election date appears in rule code.
 
 "Next election" means the next election still open for registration as of the shift date (Q27, resolved). Every entry is `verified: false`.
 
@@ -546,7 +567,10 @@ Interval convention: `from` inclusive, `to` exclusive. The deadline day is inclu
 
 No November 3, 2026 general election entry exists: the game ends after the June 3, 2026 shift (owner decision, Q15).
 
-The election display on the desk shows the next election, its label, and the registration deadline, for example "Next election: statewide primary and municipal election, June 2, 2026. Registration closes: May 18, 2026". All text comes from the calendar entry.
+The booth wall right of the window carries two signs, both computed from the calendar entry (nothing hardcoded):
+
+- "Next Election": a red seven-segment readout of the election date on a black ground. The label and the registration deadline are screen-reader text on the sign (for example "statewide primary and municipal election, June 2, 2026. Registration closes: May 18, 2026").
+- "Registrants must be born before: [date]". OWNER DECISION (build-5 item 11): R1 passes when the birth date is on or before the cutoff (election date minus 18 years), so for "before" to be exact the displayed date is the cutoff plus one day. Example: cutoff 2008-06-02 shows "June 3, 2008". A test checks the displayed date against R1 at the boundary.
 
 ---
 
@@ -577,6 +601,7 @@ All numbers are PROPOSALS, chosen as original values, not derived from any other
 
 - Whether a finished shift with errors keeps its penalties (default: yes, they are deducted from the shift's net). Whether restart forfeiture is too harsh is a playtest question, not a legal one.
 - Currency symbol and presentation are cosmetic and open.
+- Income and stakes (PENDING item 15): DEFERRED to the run after build 5. The income counter has no gameplay purpose yet; the owner chooses from the options listed in PENDING_REQUESTS.md. Overlaps Part B6.
 
 ### 6.4 Save format v1 (versioned schema)
 
@@ -601,7 +626,7 @@ interface SaveV1 {
     audio_volume: number;
     reduced_motion: boolean;
   };
-  desk_layout: Record<string, { x: number; y: number }>;  // movable desk items, including flag
+  desk_layout: Record<string, { x: number; y: number }>;  // movable desk items
   decision_log: Array<{                // supports B12; also useful for debugging
     shift_id: string;
     application_id: string;
@@ -610,13 +635,18 @@ interface SaveV1 {
     engine_verdict: "approve" | "deny";
     violated_rule_ids: string[];
     attempt_number: number;
+    denial_reason?: { rule_id: string; condition: string };      // optional (build 4)
+    denial_source?: { doc_type: string; field: string } | null;  // optional (build 4)
+    reason_confirmed?: boolean;                                  // optional (build 4)
   }>;
   flags: Record<string, boolean>;      // reserved for future progression flags
+  notes?: string;                      // optional (build 5): rulebook notes page text, max 4000 chars
 }
 ```
 
 Rules for the save layer:
 
+- The optional fields (`notes`, and the decision-log fields `denial_reason`, `denial_source`, `reason_confirmed`) are absent in older saves and are sanitized on load: `notes` is truncated to 4000 characters and dropped if not a string; malformed denial fields are rejected by validation.
 - Every load reads `schema_version` first. A version newer than the app supports is refused with a neutral message and the stored data is left untouched (never overwritten).
 - Migrations are pure functions `migrate_n_to_n+1(old) => new`, applied in order, covered by fixtures of every historical version.
 - All reads and writes are wrapped in try/catch; the game runs, without saving, if storage is unavailable.
@@ -631,6 +661,8 @@ Rules for the save layer:
 | v1 | v2 | PLANNED: add `month_progress` (current in-game date as ISO, months advanced) for Part B progression | Future |
 | v2 | v3 | PLANNED: add `family` and `obligations` for expenses (B6); add `seen_briefings` | Future |
 | v3 | v4 | PLANNED: add `ledger_view_state` for recount ending (B12), if the decision log needs a derived index | Future |
+
+Build 5 added the optional fields above without a version bump: they are additive, absent values are valid, and `schema_version` stays 1.
 
 Future entries are placeholders that show the migration mechanism, not commitments.
 
@@ -658,35 +690,41 @@ No claim is made that any of these match a source palette. The verification chec
 
 - Texture: somewhat grainy. Implementation: a procedurally generated noise layer (CSS/SVG turbulence filter or a small canvas-generated tile) applied over desk and paper at low opacity. No scanned texture assets.
 - Interface: stamp-and-ink, typewriter typography, cramped booth layout. Stamps are drawn as vector shapes with slight random rotation and ink-spread jitter. Typography: a monospace or typewriter-style face. Font choice is open; any font must be open-licensed and recorded in the manifest (section 9).
-- Layout: a single fixed-ratio screen. Booth window at the top, desk surface below with documents, the briefing letter, the election display, and the stamps. Original arrangement, not copied from any existing game; layout wireframes are a later deliverable.
-- Procedural portraits: generated from `portrait_seed` using simple parametric faces (shapes: head, hair, eyes, mouth) drawn in a limited palette. They are clearly stylized, not photographic, and not based on real people.
-- Wall seal: an original fictionalized Minnehaha County seal designed from scratch as SVG. Concept (PROPOSAL): a double ring with the county name in the outer band and an abstract geometric centerpiece (for example, stacked horizontal bars and a radiating arc) in the muted gold on navy. The real county seal is not reproduced; the designer must not work from it as a reference, and the owner should check the finished seal for unintended resemblance.
-- Desk flag: the official flag of Sioux Falls, SD, placed on the desk as a movable item like any other desk item. Source and license are in 7.3 and the manifest.
+- Layout: a single fixed-ratio screen. The office wall is at the top: the Minnehaha County seal on the left; the booth window in the middle, where the Sioux Falls flag hangs as cloth from a rod on the back wall behind the applicant (no desk flag); and on the right an analog wall clock directly on the wall showing the player's real local time (hands and numbers 1 to 12), with a compact ledger panel below it. Right of the window are the "Next Election" sign (red seven-segment date readout on black) and the "Registrants must be born before" sign (section 5), above the "Next applicant" button. The desk surface below holds the documents, the bulletin and the rulebook (2.3.1), the "Completed forms" bin, the stamps, and the slip printer. Original arrangement, not copied from any existing game.
+- Selection: no text on desk items can be selected or highlighted (so dragging a paper never selects its text); only text inputs, such as the rulebook notes page, allow it.
+- Procedural portraits: generated from `portrait_seed` using simple parametric faces (head, hair, eyes, mouth) in a limited palette. They read `sex` and age (from the birth date): older applicants get gray or white hair and face lines; facial hair is drawn as solid shapes; presentation follows sex with some variation. They are clearly stylized, not photographic, and not based on real people.
+- Voter registration form: a letter-proportioned page with a folded top-right corner and eight numbered sections down the left (eligibility, birth date, name, identification, residence address, mailing address, party affiliation, declaration). Only name, birth date and residence address are filled; the other sections are visual stand-ins (gray boxes and lines). No real seal, form number, citations or exact text is reproduced; only the general layout and paper size are matched.
+- Licenses and IDs: the emblem at the top left is the outline of the issuing state (original simplified polygons in `src/game/stateshape.ts`), with a generic emblem as the fallback. The generic back layout is the other-state back; it is not used for SD licenses.
+- Passport: a closed book the player opens to see the data page. Photocopies show the flat data page.
+- Wall seal: an original fictionalized Minnehaha County seal designed from scratch as SVG. Concept (PROPOSAL): a double ring with the county name in the outer band and an abstract geometric centerpiece (for example, stacked horizontal bars and a radiating arc) in the muted gold on navy. The real county seal is not reproduced; the designer must not work from it as a reference, and the owner should check the finished seal for unintended resemblance. The same seal is on the rulebook cover.
 
-### 7.3 Desk flag status
+### 7.3 Flag status
 
 Source page (owner-supplied): https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file `File:Flag_of_Sioux_Falls,_South_Dakota.svg`). The owner supplied the Commons permission notice, which reads: "This work has been released into the public domain by its author, Max Rabkin. This applies worldwide. In some countries this may not be legally possible; if so: Max Rabkin grants anyone the right to use this work for any purpose, without any conditions, unless such conditions are required by law."
 
-The owner verified the license on 2026-10-26; the drafter only transcribed it. Status: approved for use, no attribution required. The placeholder pennant is no longer needed and is removed from the manifest. The SVG is committed to the repository once (under assets/, recorded in the manifest); the build never fetches it, because this environment's network policy blocks Wikimedia. This document does not describe the flag's design or colors.
+The owner verified the license on 2026-10-26; the drafter only transcribed it. Status: approved for use, no attribution required. The flag now hangs in the booth scene (see 7.2), drawn into the back wall from the public-domain design; it is not a movable desk item. The placeholder pennant is no longer needed and is removed from the manifest. The SVG is committed to the repository once (under assets/, recorded in the manifest); the build never fetches it, because this environment's network policy blocks Wikimedia. This document does not describe the flag's design or colors.
 
-### 7.4 Audio (MVP)
+### 7.4 Audio
 
-Only original or licensed audio; every source goes in the manifest. Proposed approach is to generate everything procedurally with the Web Audio API so no third-party audio is needed:
+Only original or licensed audio; every source goes in the manifest. Everything is generated procedurally with the Web Audio API (`src/ui/audio.ts`; timing helpers in `src/ui/audio_sched.ts`), so no third-party audio is used:
 
 | Sound | Method |
 |---|---|
-| Ambient hum | Low sine/sawtooth pair with a slow filter drift, low-pass filtered noise bed; looped |
+| Room hum | Low sine/sawtooth pair with a slow filter drift, low-pass filtered noise bed; looped |
+| Ambient cues | Recognizable one-shots: phone ring (440 + 480 Hz, ring cadence), chair creak, vent whoosh, fluorescent tick. One at a time, never overlapping. The next cue starts 35 to 90 s after the previous one ends |
 | Stamp thud | Short enveloped low-frequency burst plus a brief noise transient; slight pitch randomization |
-| Typewriter clicks | Very short band-passed noise bursts with randomized timing and gain |
-| Month-advance tick (Part B) | A single short click; not in MVP |
+| Sound effects | UI and button clicks, paper and card pickup, drop and flip, field selection, bulletin printing, footsteps in and out, error tone, typewriter clicks (short band-passed noise and tone bursts) |
+| Title music | A generated looping menu track on the title screen |
+| Car ignition | About 3 s starting sound (crank, catch, idle); played only when Continue starts a new day |
+| Fades | The ambience fades down around the summary screen and back up when the next day starts |
 
-No music in the MVP. A mute control and volume setting are required.
+A mute control and volume setting are required.
 
 ### 7.5 Accessibility seeds (B10, built in from the start)
 
 - APPROVE and DENY stamps differ by shape and text label, not by color alone (colorblind-safe).
 - Text is readable at default size and scalable via setting.
-- Every action reachable by keyboard: tab order through desk items, key to approve, key to deny, keyboard-driven move of desk items (as an alternative to dragging).
+- OWNER DECISION (build-5 item 5): the game is presented as point-and-click. Keyboard play is kept (tab order through desk items, keys to approve and deny, keyboard-driven move of desk items) but not advertised. The key bindings are listed only in Settings, with no other prompts or hints on screen.
 - Reduced-motion setting disables stamp jitter and any shake.
 
 ---
@@ -728,7 +766,7 @@ Rule: all assets are original or pipeline-generated, except those explicitly nam
 
 | Asset ID | Type | Description | Source | Origin | License | `license_verified` | Status |
 |---|---|---|---|---|---|---|---|
-| `flag_sioux_falls` | image (SVG) | Sioux Falls flag for the desk | https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | third-party (named exception) | Public domain release by file author (Max Rabkin), per Commons permission notice; no attribution required | true (verified by owner, 2026-10-26) | approved for use; committed at assets/flag_sioux_falls.svg |
+| `flag_sioux_falls` | image (SVG) | Sioux Falls flag, hung on the booth back wall | https://en.wikipedia.org/wiki/Flag_of_Sioux_Falls,_South_Dakota (Commons file File:Flag_of_Sioux_Falls,_South_Dakota.svg) | third-party (named exception) | Public domain release by file author (Max Rabkin), per Commons permission notice; no attribution required | true (verified by owner, 2026-10-26) | approved for use; committed at assets/flag_sioux_falls.svg; now drawn into the booth wall |
 | `seal_minnehaha_fictional` | image (SVG) | Original fictionalized county seal for the wall | Authored by project | original | Project owner's choice | false | created at assets/seal_minnehaha_fictional.svg |
 | `portraits_procedural` | generator code | Parametric placeholder faces from `portrait_seed` | Project code | original | Project owner's choice | false | created (src/game/portrait.ts, src/ui/portrait.ts) |
 | `texture_grain` | generator code | Procedural noise texture | Project code | original | Project owner's choice | false | created (src/ui/grain.ts) |
@@ -738,6 +776,11 @@ Rule: all assets are original or pipeline-generated, except those explicitly nam
 | `audio_hum` | audio (generated) | Ambient hum | Web Audio synthesis in project code | original | Project owner's choice | false | created (src/ui/audio.ts) |
 | `audio_stamp_thud` | audio (generated) | Stamp thud | Web Audio synthesis | original | Project owner's choice | false | created (src/ui/audio.ts) |
 | `audio_typewriter_click` | audio (generated) | Typewriter clicks | Web Audio synthesis | original | Project owner's choice | false | created (src/ui/audio.ts) |
+| `audio_ambient_cues` | audio (generated) | Phone ring, chair creak, vent whoosh, fluorescent tick | Web Audio synthesis | original | Project owner's choice | false | created (src/ui/audio.ts, src/ui/audio_sched.ts) |
+| `audio_ignition` | audio (generated) | Car ignition for a new day | Web Audio synthesis | original | Project owner's choice | false | created (src/ui/audio.ts) |
+| `state_outlines` | generator code | Simplified state-outline emblems for licenses and IDs | Project code; original simplified polygons | original | Project owner's choice | false | created (src/game/stateshape.ts) |
+| `wall_clock` | generator code | Analog wall clock showing the player's local time | Project code | original | Project owner's choice | false | created (src/ui/wallclock.ts) |
+| `seven_segment_display` | generator code | Red seven-segment date readout for the Next Election sign | Project code | original | Project owner's choice | false | created (src/ui/signs.ts) |
 | `audio_tick` | audio (generated) | Single tick (Part B) | Web Audio synthesis | original | Project owner's choice | false | future |
 | `palette_tokens` | CSS tokens | Section 7.1 colors | Original picks | original | n/a | false | created (src/ui/style.css) |
 
@@ -923,6 +966,11 @@ Numbered sequentially. Status tags: RESOLVED (owner answer recorded), PENDING, o
 | 2026-10-27 | build-4 | Owner | The booth portrait's backdrop should not move with the applicant: the person is drawn without a backdrop over a static room; document photos keep the backdrop | — |
 | 2026-10-27 | build-4 | Sonnet builders | Audio: mute gate suspends the audio context; quieter ambience with sparse distant office sounds; 14 synthesized SFX; original 16-bar G-major title loop at 98 BPM (`src/game/music.ts`). Art: five face shapes, 44x68 pixel desk flag from the public-domain Sioux Falls design, pixel self-inking stamps (APPROVED taller with rounded box; DENIED squatter with octagonal frame). Flow: bulletin print, Next applicant (N), walk in/out over a static pixel room, denial-reason sheet built from active rules' condition strings with valid-source mapping (`src/game/reasons.ts`), stamps on the voter form, Completed forms bin (drag or B), first-free wrong-reason scoring, optional decision_log fields `denial_reason`, `denial_source`, `reason_confirmed` (schema_version unchanged) | Mute root cause not reproduced, fixed by inference; music and SFX verified by output level, not by listening |
 | 2026-10-27 | build-4 | Opus reviewer | Build-4 APPROVED pending owner play-test (458 tests, typecheck and build clean; approve-and-file and the denial sheet driven in the browser; no console errors; no encoding damage) | Owner to judge sound, music, faces, flag and stamps by eye and ear; DESIGN 2.3-2.7 still to be revised to the new flow |
+| 2026-10-27 | build-5 | Owner | Build-5 list (PENDING_REQUESTS items 1-25). Decisions: keyboard kept but listed only in Settings (item 5); "born before" sign shows cutoff + 1 day (item 11); explicit `sex` field (item 23); income/stakes deferred (item 15); item 26 not approved to build, proposal requested | — |
+| 2026-10-27 | build-5 | Sonnet builders | Five parallel builds: audio (recognizable ambient cues, one at a time, 35-90 s gaps, summary fades, car ignition, keybinds in Settings); applicants (`sex` field, sex/age-aware portraits, hair spike fix, real SD towns with ZIPs); rulebook (`src/game/ruletext.ts`, `src/ui/rulebook.ts`, `rulebook.json`, optional save `notes`); desk (no key hints, no text selection, election and born-before signs, printed feedback slips, wall clock, bulletin of new rules only, rulebook and notes wired); documents (letter-size voter form, SD card overlaps, `backKind`, state-outline emblems, passport book, Sex row). Item 26 proposal in docs/PROPOSAL_RULE_SCHEDULE.md | — |
+| 2026-10-27 | build-5 | Opus reviewer | Rounds: audio 2 (a summary could be dropped mid-fade); proposal 2 (R4/R7 overlap); applicants 3 (scripted `sex`; facial hair drawn as strands hiding the mouth; side wisps); documents 2 (Sex row, portrait traits); desk 3 (integration; R2 copy; raw rule ids on slips) | none |
+| 2026-10-27 | build-5 | Owner | Play-test feedback: rulebook would not close; too many documents early on (applicants should bring the form and a driver license); desk flag looked like a square, move it to the booth wall; clock should sit on the blue wall with the ledger panel below it. Owner decision: the residency declaration is shown inside the voter form's residence-address section ("The declaration of residency is inherent when a voter signs & submits the voter registration form in real life.") | — |
+| 2026-10-27 | build-5 | Opus reviewer | Build-5 APPROVED pending owner play-test (539 tests, typecheck and build clean; browser check at 1280x800: s01 bulletin and rulebook text, rulebook open/close, signs, wall clock and ledger, booth flag, form residence section, two-document applicant, beard portrait). Spec sections 2.3-2.7, 2.4, 3.4, 5, 6.3-6.5, 7.2-7.5 and 9 revised | Owner: approve rulebook wording; verify SD city ZIPs; confirm the Firefox walk on the owner's machine (not reproduced in Firefox 159); listen to the new audio; SD-back "RESTR/CLASS" report not reproduced (that is the other-state back); `DOC_COPY` strings still in documents.ts; passport book not seen in live play; item 15 options and item 26 proposal await owner |
 
 ---
 

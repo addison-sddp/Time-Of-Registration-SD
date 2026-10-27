@@ -1,4 +1,5 @@
 import { createRng } from "../gen/rng";
+import { createCueScheduler, ignitionPlan, type ActiveCue } from "./audio_sched";
 import {
   MENU_SCORE, loopSeconds, midiToHz, schedule, startCursor, takeDue,
   type Channel, type Cursor, type ScheduledNote,
@@ -26,6 +27,7 @@ export interface Audio {
   sfx(name: Sfx): void;
   stamp(): void; // same as sfx("stamp_approve")
   type(chars: number): void; // typewriter clicks for text that just appeared
+  ignition(): void; // car starting up, ~3 s; only for Continue to a new shift
 }
 
 const LOOKAHEAD = 0.3; // seconds of music scheduled ahead of the audio clock
@@ -236,7 +238,6 @@ export function createAudio(initialVolume: number, initialMuted: boolean): Audio
   // ---- Ambience ----
 
   let ambBuilt = false;
-  let ambTimer: number | undefined;
 
   function buildAmbient(c: AudioContext, out: AudioNode): void {
     ambBuilt = true;
@@ -282,8 +283,9 @@ export function createAudio(initialVolume: number, initialMuted: boolean): Audio
     for (const n of [hum, hum2, lfo, lfo2, src]) n.start();
   }
 
-  // Far-off office sounds, kept quiet and low-passed to read as distant.
-  function distantSound(c: AudioContext, out: AudioNode): void {
+  // Far-off office sounds, kept quiet and muffled to read as another desk. Each cue gets its own
+  // output node so it can be silenced on the spot; its length is returned for the single-cue lock.
+  function distantSound(c: AudioContext, out: AudioNode): ActiveCue {
     const far = c.createGain();
     far.gain.value = 1;
     const lp = c.createBiquadFilter();
@@ -294,52 +296,238 @@ export function createAudio(initialVolume: number, initialMuted: boolean): Audio
     const kind = rng.weighted<"phone" | "chair" | "vent" | "tick">([
       ["phone", 3], ["chair", 3], ["vent", 2], ["tick", 3],
     ]);
-    if (kind === "phone") {
-      const rings = rng.chance(0.5) ? 2 : 3;
-      for (let r = 0; r < rings; r++) {
-        const at = t + r * 1.1;
-        for (let k = 0; k < 24; k++) {
-          const a = at + k * 0.04;
-          tone(c, far, { at: a, dur: 0.028, gain: 0.03, type: "triangle", f0: 1250, lowpass: 2000 });
-          tone(c, far, { at: a, dur: 0.028, gain: 0.025, type: "triangle", f0: 1580, lowpass: 2000 });
-        }
-      }
-    } else if (kind === "chair") {
-      const f = range(150, 220);
-      tone(c, far, { at: t, dur: 0.55, gain: 0.05, type: "sawtooth", f0: f, f1: f * 1.45, lowpass: 900, attack: 0.08 });
-      tone(c, far, { at: t + 0.3, dur: 0.3, gain: 0.03, type: "sawtooth", f0: f * 1.3, f1: f * 0.9, lowpass: 700, attack: 0.05 });
-      burst(c, far, { at: t, dur: 0.5, gain: 0.03, f0: 700, f1: 1100, q: 6, attack: 0.06 });
-    } else if (kind === "vent") {
-      burst(c, far, { at: t, dur: 3.2, gain: 0.06, f0: 350, f1: 800, q: 1.2, attack: 1.2 });
-    } else {
-      const ticks = 2 + Math.floor(rng.next() * 3);
-      for (let k = 0; k < ticks; k++) {
-        const a = t + k * range(0.12, 0.4);
-        burst(c, far, { at: a, dur: 0.012, gain: 0.07, type: "highpass", f0: 3000, q: 0.7 });
-        tone(c, far, { at: a, dur: 0.05, gain: 0.015, type: "sine", f0: 100, f1: 100 });
-      }
-    }
+    let dur: number;
+    if (kind === "phone") dur = phoneRing(c, far, t);
+    else if (kind === "chair") dur = chairCreak(c, far, t);
+    else if (kind === "vent") dur = ventWhoosh(c, far, t);
+    else dur = fluorescentTick(c, far, t);
+    return {
+      duration: dur + 0.15,
+      cancel() {
+        const now = c.currentTime;
+        far.gain.cancelScheduledValues(now);
+        far.gain.setTargetAtTime(0, now, 0.02);
+        window.setTimeout(() => {
+          try { far.disconnect(); lp.disconnect(); } catch { /* already gone */ }
+        }, 200);
+      },
+    };
   }
 
-  function scheduleAmbientEvent(): void {
-    window.clearTimeout(ambTimer);
-    if (!wantAmbience) return;
-    ambTimer = window.setTimeout(() => {
-      if (wantAmbience && !muted && ctx !== null && ambBus !== null && ctx.state === "running") distantSound(ctx, ambBus);
-      scheduleAmbientEvent();
-    }, range(8, 25) * 1000);
+  // Classic desk phone: 440 + 480 Hz, amplitude-modulated near 20 Hz, ~2 s on / ~4 s off, 1-2 rings,
+  // muffled by a low-pass as if from across the room. Returns seconds until it has ended.
+  function phoneRing(c: AudioContext, out: AudioNode, t: number): number {
+    const rings = rng.chance(0.5) ? 1 : 2;
+    const on = 2;
+    const off = 4;
+    const total = rings * on + (rings - 1) * off;
+    const sum = c.createGain();
+    const trem = c.createGain(); // 20 Hz amplitude modulation: gain = 0.5 + 0.5 * sin
+    trem.gain.value = 0;
+    const env = c.createGain(); // ring cadence
+    env.gain.value = 0;
+    const muffle = c.createBiquadFilter();
+    muffle.type = "lowpass";
+    muffle.frequency.value = 900;
+    const level = c.createGain();
+    level.gain.value = 0.05;
+    sum.connect(trem).connect(env).connect(muffle).connect(level).connect(out);
+    for (const f of [440, 480]) {
+      const o = c.createOscillator();
+      o.type = "sine";
+      o.frequency.value = f;
+      const g = c.createGain();
+      g.gain.value = 0.5;
+      o.connect(g).connect(sum);
+      o.start(t);
+      o.stop(t + total + 0.05);
+    }
+    const lfo = c.createOscillator();
+    lfo.frequency.value = rng.chance(0.5) ? 20 : 21;
+    const lfoDepth = c.createGain();
+    lfoDepth.gain.value = 0.5;
+    lfo.connect(lfoDepth).connect(trem.gain);
+    const bias = c.createConstantSource();
+    bias.offset.value = 0.5;
+    bias.connect(trem.gain);
+    for (const n of [lfo, bias]) {
+      n.start(t);
+      n.stop(t + total + 0.05);
+    }
+    for (let r = 0; r < rings; r++) {
+      const a = t + r * (on + off);
+      env.gain.setValueAtTime(0, a);
+      env.gain.linearRampToValueAtTime(1, a + 0.03);
+      env.gain.setValueAtTime(1, a + on - 0.05);
+      env.gain.linearRampToValueAtTime(0, a + on);
+    }
+    return total + 0.05;
   }
+
+  // Office chair: a sawtooth through a narrow band-pass whose centre glides 300-900 Hz, with
+  // stick-slip amplitude jitter. 0.4-0.9 s.
+  function chairCreak(c: AudioContext, out: AudioNode, t: number): number {
+    const dur = range(0.4, 0.9);
+    const osc = c.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(range(150, 210), t);
+    osc.frequency.linearRampToValueAtTime(range(190, 260), t + dur);
+    const bp = c.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 9;
+    const up = rng.chance(0.6);
+    const lo = range(300, 420);
+    const hi = range(700, 900);
+    bp.frequency.setValueAtTime(up ? lo : hi, t);
+    const steps = 5;
+    for (let i = 1; i <= steps; i++) {
+      const p = i / steps;
+      const base = up ? lo + (hi - lo) * p : hi - (hi - lo) * p;
+      bp.frequency.linearRampToValueAtTime(Math.max(300, Math.min(900, base * (1 + range(-0.12, 0.12)))), t + dur * p);
+    }
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.9, t + 0.05);
+    let at = t + 0.05;
+    while (at < t + dur - 0.12) {
+      at += range(0.03, 0.08);
+      g.gain.linearRampToValueAtTime(range(0.15, 1), Math.min(at, t + dur - 0.07)); // stick, slip, stick
+    }
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    const level = c.createGain();
+    level.gain.value = 0.2;
+    osc.connect(bp).connect(g).connect(level).connect(out);
+    osc.start(t);
+    osc.stop(t + dur + 0.03);
+    return dur + 0.03;
+  }
+
+  // HVAC kicking on and off: band-passed noise (300-1200 Hz), ~0.8 s attack, sustain, slow release.
+  function ventWhoosh(c: AudioContext, out: AudioNode, t: number): number {
+    const sustain = range(1.6, 2.6);
+    const attack = 0.8;
+    const release = 1.2;
+    const dur = attack + sustain + release;
+    const src = c.createBufferSource();
+    src.buffer = noise;
+    src.loop = true;
+    const bp = c.createBiquadFilter();
+    bp.type = "bandpass";
+    bp.Q.value = 0.8;
+    bp.frequency.setValueAtTime(300, t);
+    bp.frequency.linearRampToValueAtTime(1200, t + attack + sustain * 0.5);
+    bp.frequency.linearRampToValueAtTime(600, t + dur);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.16, t + attack);
+    g.gain.setValueAtTime(0.16, t + attack + sustain);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    src.connect(bp).connect(g).connect(out);
+    src.start(t, rng.next() * 1.5);
+    src.stop(t + dur + 0.03);
+    return dur + 0.03;
+  }
+
+  // Fluorescent ballast flicker: a short burst of clicks and a brief 120 Hz buzz swell.
+  function fluorescentTick(c: AudioContext, out: AudioNode, t: number): number {
+    const clicks = 3 + Math.floor(rng.next() * 4);
+    let at = t;
+    for (let k = 0; k < clicks; k++) {
+      burst(c, out, { at, dur: 0.012, gain: 0.16, type: "highpass", f0: 2800, q: 0.7 });
+      tone(c, out, { at, dur: 0.02, gain: 0.03, type: "square", f0: 1900, f1: 1200, lowpass: 3000 });
+      at += range(0.05, 0.16);
+    }
+    const buzzLen = 0.5;
+    const osc = c.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = 120;
+    const lp = c.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 700;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.03, t + buzzLen * 0.4);
+    g.gain.linearRampToValueAtTime(0.0001, t + buzzLen);
+    osc.connect(lp).connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + buzzLen + 0.03);
+    return Math.max(at - t + 0.03, buzzLen + 0.03);
+  }
+
+  // Exactly one scheduler exists for the life of the Audio object; start/stop are idempotent.
+  const cues = createCueScheduler({
+    setTimer: (fn, ms) => window.setTimeout(fn, ms),
+    clearTimer: (id) => window.clearTimeout(id),
+    random: () => rng.next(),
+    play: () => {
+      if (!wantAmbience || muted || ctx === null || ambBus === null || ctx.state !== "running") return null;
+      return distantSound(ctx, ambBus);
+    },
+  });
 
   function applyAmbience(): void {
     if (ctx === null || ambBus === null) return;
-    if (wantAmbience) {
+    if (wantAmbience && !muted) {
       if (!ambBuilt) buildAmbient(ctx, ambBus);
       ramp(ambBus.gain, ctx, 1, 0.9);
-      scheduleAmbientEvent();
+      cues.start();
     } else {
-      ramp(ambBus.gain, ctx, 0, 0.35);
-      window.clearTimeout(ambTimer);
+      if (!wantAmbience) ramp(ambBus.gain, ctx, 0, 0.35);
+      cues.stop();
     }
+  }
+
+  // ---- Car ignition ----
+
+  // Starter-motor crank (2-4 low chugs), then the engine catches, revs once and settles into an
+  // idle rumble that fades. Total 2.5-3.5 s. Runs on the sfx bus, so master volume and mute apply.
+  function carIgnition(c: AudioContext, out: AudioNode): void {
+    const plan = ignitionPlan(rng.next(), rng.next());
+    const t = c.currentTime + 0.03;
+    const bus = c.createGain();
+    bus.gain.value = 0.55;
+    const lp = c.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 520;
+    bus.connect(lp).connect(out);
+    for (let i = 0; i < plan.cranks; i++) {
+      const at = t + i * plan.crankPeriod;
+      tone(c, bus, { at, dur: plan.crankPeriod * 0.9, gain: 0.5, type: "sawtooth", f0: 78 * vary(0.05), f1: 52, attack: 0.04, lowpass: 380 });
+      tone(c, bus, { at, dur: plan.crankPeriod * 0.8, gain: 0.07, type: "square", f0: 310, f1: 240, attack: 0.05, lowpass: 900 });
+      burst(c, bus, { at, dur: plan.crankPeriod * 0.7, gain: 0.1, f0: 700, f1: 1000, q: 1.2, attack: 0.05 });
+    }
+    const at = t + plan.catchAt;
+    const idleLen = plan.total - plan.catchAt;
+    const osc = c.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(34, at);
+    osc.frequency.linearRampToValueAtTime(88, at + 0.22);
+    osc.frequency.linearRampToValueAtTime(46, at + 0.7);
+    osc.frequency.linearRampToValueAtTime(40, at + idleLen);
+    const eng = c.createBiquadFilter();
+    eng.type = "lowpass";
+    eng.frequency.value = 260;
+    const pulse = c.createGain(); // cylinder firing: amplitude chop
+    pulse.gain.value = 0.6;
+    const chop = c.createOscillator();
+    chop.type = "sine";
+    chop.frequency.setValueAtTime(10, at);
+    chop.frequency.linearRampToValueAtTime(24, at + 0.22);
+    chop.frequency.linearRampToValueAtTime(15, at + 0.7);
+    const chopDepth = c.createGain();
+    chopDepth.gain.value = 0.4;
+    chop.connect(chopDepth).connect(pulse.gain);
+    const env = c.createGain();
+    env.gain.setValueAtTime(0.0001, at);
+    env.gain.linearRampToValueAtTime(0.9, at + 0.08);
+    env.gain.linearRampToValueAtTime(0.5, at + 0.8);
+    env.gain.linearRampToValueAtTime(0.0001, at + idleLen);
+    osc.connect(eng).connect(pulse).connect(env).connect(bus);
+    for (const n of [osc, chop]) {
+      n.start(at);
+      n.stop(at + idleLen + 0.05);
+    }
+    burst(c, bus, { at, dur: 0.25, gain: 0.12, type: "lowpass", f0: 500, q: 0.7 });
   }
 
   // ---- Music ----
@@ -437,6 +625,7 @@ export function createAudio(initialVolume: number, initialMuted: boolean): Audio
     ramp(master.gain, ctx, clamp01(volume), 0.03);
     ramp(gate.gain, ctx, muted ? 0 : 1, 0.02);
     window.clearTimeout(suspendTimer);
+    applyAmbience();
     if (muted) {
       // Hard silence: stop the music clock, then suspend the whole context once the gate has closed.
       if (musicTimer !== undefined) {
@@ -538,6 +727,10 @@ export function createAudio(initialVolume: number, initialMuted: boolean): Audio
     stamp() {
       if (!live() || ctx === null || sfxBus === null) return;
       playSfx(ctx, sfxBus, "stamp_approve");
+    },
+    ignition() {
+      if (!live() || ctx === null || sfxBus === null) return;
+      carIgnition(ctx, sfxBus);
     },
     type(chars) {
       if (!live() || ctx === null || sfxBus === null) return;

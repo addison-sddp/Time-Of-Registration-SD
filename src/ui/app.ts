@@ -6,18 +6,24 @@ import {
 } from "../game/state";
 import { rules } from "../rules";
 import {
-  createSaveStore, makeSaveSalt, newSave, type SaveStore, type SaveV1, type StorageLike,
+  createSaveStore, makeSaveSalt, newSave, withNotes, type SaveStore, type SaveV1, type StorageLike,
 } from "../save";
 import { createAudio } from "./audio";
+import { shouldIgnite } from "./audio_sched";
 import { clear, h } from "./dom";
 import { grainUrl, speckleUrl } from "./grain";
 import { createPlay, STAGE_H, STAGE_W, type PlayView } from "./play";
 import { inkDefs } from "./stamps";
+import "./transitions.css";
+import { createFader } from "./transitions";
 
 const N = narrative;
 const T = (group: Record<string, string>, k: string): string => group[k] ?? "";
 const MUTE_FLAG = "audio_muted";
 const STARTED_FLAG = "started";
+const FADE_MS = 600;
+// Literal copy not yet in narrative.json (move there later): the heading of the Settings keyboard list.
+// The key descriptions themselves reuse N.desk.controls and N.desk.move_hint.
 
 export function startApp(host: HTMLElement): void {
   const sandboxMode = new URLSearchParams(window.location.search).get("sandbox") === "1";
@@ -50,7 +56,8 @@ export function startApp(host: HTMLElement): void {
   const screen = h("div", { class: "screen" });
   const footer = h("p", { class: "storage-note", role: "status", "aria-live": "polite" });
   const grain = h("div", { class: "grain", "aria-hidden": "true" });
-  stage.append(inkDefs(), screen, grain, footer);
+  const veil = h("div", { class: "fade-veil", "aria-hidden": "true" });
+  stage.append(inkDefs(), screen, grain, footer, veil);
   host.append(stage);
   stage.style.setProperty("--grain", grainUrl());
   stage.style.setProperty("--speckle", speckleUrl());
@@ -117,6 +124,16 @@ export function startApp(host: HTMLElement): void {
     showFooter();
   };
 
+  // Fade to black, swap the screen, fade back in. Button presses drop if a fade is running;
+  // completion swaps are queued so the summary always appears.
+  const fader = createFader({
+    reduced: reducedMotion,
+    setTimer: (fn, ms) => window.setTimeout(fn, ms),
+    veil: (on) => { veil.classList.toggle("on", on); },
+    ms: FADE_MS,
+  });
+  const transition = (swap: () => void, opts?: { dropIfBusy?: boolean }): boolean => fader.run(swap, opts);
+
   const allComplete = (): boolean => {
     const last = shifts[shifts.length - 1]?.shift_id ?? "";
     return profile.progress.completed_shift_ids.includes(last);
@@ -161,6 +178,11 @@ export function startApp(host: HTMLElement): void {
         h("label", { for: "set-volume" }, T(N.settings, "audio_volume")), volInput,
         h("label", { class: "check" }, muteInput, T(N.settings, "mute")),
         h("label", { class: "check" }, motionInput, T(N.settings, "reduced_motion")),
+        h("section", { class: "kbd-list", "aria-label": T(N.settings, "keyboard_heading") },
+          h("h3", {}, T(N.settings, "keyboard_heading")),
+          h("p", {}, T(N.desk, "controls")),
+          h("p", {}, T(N.desk, "move_hint")),
+        ),
         close,
       ),
     );
@@ -222,6 +244,12 @@ export function startApp(host: HTMLElement): void {
       audio,
       layout: profile.desk_layout,
       layoutChanged,
+      notes: profile.notes ?? "",
+      // Notes are a player convenience, not progress: saved in sandbox sessions too, and only this field.
+      onNotesChange: (text) => {
+        profile = withNotes(profile, text);
+        persist();
+      },
       scale: () => scale,
       reducedMotion,
       onState: (s) => {
@@ -231,7 +259,7 @@ export function startApp(host: HTMLElement): void {
           persist();
         }
       },
-      onComplete: (s) => showSummary(s),
+      onComplete: (s) => { transition(() => showSummary(s)); },
       openSettings,
       exit,
       exitLabel,
@@ -258,7 +286,11 @@ export function startApp(host: HTMLElement): void {
     const next = sandbox ? showSandbox : isFinalShift(state.shift.shift_id) ? showTitle : beginCalendar;
     const label = sandbox ? T(N.sandbox, "exit") : isFinalShift(state.shift.shift_id) ? T(S, "return_to_title") : T(S, "continue");
     const row = (name: string, value: string): HTMLElement => h("div", { class: "sum-row" }, h("dt", {}, name), h("dd", {}, value));
-    const btn = h("button", { type: "button", class: "primary", onclick: () => { click(); next(); } }, label);
+    const btn = h("button", { type: "button", class: "primary", onclick: () => {
+      click();
+      const started = transition(next, { dropIfBusy: true });
+      if (started && shouldIgnite(sandbox, isFinalShift(state.shift.shift_id))) audio.ignition();
+    } }, label);
     const el = h(
       "main",
       { class: "summary-screen" },

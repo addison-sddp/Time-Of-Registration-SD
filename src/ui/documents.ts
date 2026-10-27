@@ -1,14 +1,15 @@
 import { narrative } from "../data";
-import type { Application, Document } from "../engine/types";
-import { cardKind, mrzLines, serialDigits, stateStyle, wearFor } from "../game/docstyle";
+import type { Application, Document, ISODate } from "../engine/types";
+import { backKind, cardKind, isBookPassport, mrzLines, serialDigits, stateStyle, wearFor } from "../game/docstyle";
 import { FLIPPABLE_TYPES, finePrintFor, sdBackRows } from "../game/fineprint";
 import { formatPrinted } from "../game/format";
+import { documentTraits } from "../game/portrait";
 import { r3Citizenship } from "../rules";
 import {
-  barsEmblem, embossedSeal, foil, notchFrame, rosetteSvg, ropeFrame, scallopFrame, sheen, starRing, stripeMark,
-  waveBand, waveLayer,
+  coverDevice, embossedSeal, foil, notchFrame, rosetteSvg, ropeFrame, scallopFrame, sheen, starRing, stateEmblem,
+  stateOutlineMark, stripeMark, waveBand, waveLayer,
 } from "./decor";
-import { h, s, type Child } from "./dom";
+import { h, type Child } from "./dom";
 import { drawPortrait } from "./portrait";
 import "./documents.css";
 
@@ -20,6 +21,38 @@ const tribes = (r3Citizenship.params as { participating_tribes: { key: string; n
 const tribeName = (key: string): string => tribes.find((t) => t.key === key)?.name ?? key;
 
 const D = narrative.docs;
+
+// COPY ADDED BY BUILD 5 (documents only; move into narrative.json docs when convenient). All wording is
+// generic and original: no real form text, form number, statute or agency name.
+export const DOC_COPY = {
+  // Passport cover (closed book) and the open/close button.
+  cover_title: "PASSPORT",
+  cover_country: "United States of America",
+  open: "open",
+  close: "close",
+  open_label: "Open passport (Enter or Space while focused)",
+  close_label: "Close passport (Enter or Space while focused)",
+  visa_page: "Visas",
+  // Voter registration application sections.
+  q_citizen: "Are you a citizen of the United States?",
+  q_age: "Will you be 18 years old on or before election day?",
+  yes: "Yes",
+  no: "No",
+  sec_eligibility: "Eligibility",
+  sec_birthdate: "Birthdate",
+  sec_name: "Name",
+  sec_ident: "Identification",
+  sec_residence: "Residence address",
+  sec_mailing: "Mailing address",
+  sec_party: "Party affiliation",
+  sec_declaration: "Declaration",
+  name_parts: ["Last", "First", "Middle", "Suffix"],
+  declaration: "I declare that what I have written here is true.",
+  sex: "Sex",
+  signature: "Signature",
+  date: "Date",
+} as const;
+export const FORM_COPY = DOC_COPY;
 const label = (k: string): string => D[k] ?? k;
 
 // Each printed field carries a stable data-field key (name, birth_date, address, issue_date,
@@ -54,10 +87,13 @@ function issuer(d: Document): string | null {
   return d.type === "tribal_id" ? tribeName(d.issuing_jurisdiction) : d.issuing_jurisdiction;
 }
 
+const SEX_TYPES: readonly string[] = ["sd_drivers_license", "other_state_drivers_license", "other_state_nondriver_id", "tribal_id", "us_passport"];
+
 function fields(d: Document): Child[] {
   return [
     row(label("name"), d.name, true, "name"),
     row(label("birth_date"), d.birth_date === null ? null : formatPrinted(d.birth_date), false, "birth_date"),
+    SEX_TYPES.includes(d.type) && d.sex !== null && d.sex !== undefined ? row(DOC_COPY.sex, d.sex, false) : null,
     row(label("address"), addressText(d), true, "address"),
     row(label("issued"), d.issue_date === null ? null : formatPrinted(d.issue_date), false, "issue_date"),
     row(label("expires"), d.expiry_date === null ? null : formatPrinted(d.expiry_date), false, "expiry_date"),
@@ -97,8 +133,15 @@ function dress(card: HTMLElement, id: string): void {
   card.append(h("span", { class: "wear", "aria-hidden": "true" }, h("span", { class: "crease" }), h("span", { class: "fold" })));
 }
 
-const portraitBox = (d: Document): Child =>
-  d.portrait_seed === null ? null : h("div", { class: "doc-portrait" }, drawPortrait(d.portrait_seed, label("portrait_label")));
+// Set by renderCard for the duration of one render: the date used for the pictured age when a
+// document has no issue date.
+let renderAsOf: ISODate | undefined;
+const portraitBox = (d: Document): Child => {
+  if (d.portrait_seed === null) return null;
+  const when = d.issue_date ?? renderAsOf;
+  const traits = when === undefined ? undefined : documentTraits(d, when);
+  return h("div", { class: "doc-portrait" }, drawPortrait(d.portrait_seed, label("portrait_label"), true, traits));
+};
 const fieldList = (d: Document): HTMLElement => h("dl", { class: "fields grid" }, ...fields(d));
 const body = (d: Document): HTMLElement => h("div", { class: "doc-body" }, portraitBox(d), fieldList(d));
 const titleSpan = (t: string): HTMLElement => h("span", { class: "doc-title" }, t);
@@ -112,7 +155,7 @@ function front(d: Document, title: string): HTMLElement {
     case "sd_drivers_license":
       return face(
         waveLayer(128, 5, 6, 38),
-        h("div", { class: "doc-head" }, barsEmblem(), titleSpan(title)),
+        h("div", { class: "doc-head" }, stateEmblem("SD"), titleSpan(title)),
         body(d),
         foil(),
         sheen(),
@@ -120,13 +163,13 @@ function front(d: Document, title: string): HTMLElement {
     case "other_state_drivers_license":
       return face(
         h("div", { class: "decor mark" }, rosetteSvg(stateStyle(state).lobes)),
-        h("div", { class: "doc-head" }, h("span", { class: "doc-state" }, state), titleSpan(title)),
+        h("div", { class: "doc-head" }, h("span", { class: "doc-state" }, stateEmblem(state), state), titleSpan(title)),
         body(d),
         sheen(),
       );
     case "other_state_nondriver_id":
       return face(
-        h("div", { class: "side-band", "aria-hidden": "true" }, h("span", { class: "side-code" }, state), stripeMark()),
+        h("div", { class: "side-band", "aria-hidden": "true" }, h("span", { class: "side-code" }, state), stateEmblem(state)),
         h("div", { class: "doc-head" }, titleSpan(title)),
         body(d),
         sheen(),
@@ -145,16 +188,9 @@ function front(d: Document, title: string): HTMLElement {
         body(d),
         embossedSeal(7),
       );
-    case "us_passport": {
-      const [m1, m2] = mrzLines(d);
-      return face(
-        h("div", { class: "doc-head" }, starRing(), titleSpan(title), h("span", { class: "pp-type" }, label("passport_type"), h("br"), label("passport_code"))),
-        waveBand(226, 10, 4, "wave-band pp-band"),
-        body(d),
-        h("div", { class: "mrz", "aria-hidden": "true" }, h("div", {}, m1), h("div", {}, m2)),
-        sheen(),
-      );
-    }
+    case "us_passport":
+      // Only a photocopy shows the bare data page; a real passport is a book (see passportBook).
+      return face(...passportPage(d, title));
     case "consular_report_of_birth_abroad":
       return face(
         notchFrame(),
@@ -185,12 +221,38 @@ function front(d: Document, title: string): HTMLElement {
   }
 }
 
-// A small original outline of South Dakota: a plain polygon, drawn for this project.
-function stateOutline(): SVGElement {
-  return s(
-    "svg",
-    { viewBox: "0 0 62 36", class: "sd-outline", "aria-hidden": "true", focusable: "false" },
-    s("polygon", { points: "3,4 58,4 59,13 57,18 58,25 54,31 47,28 41,25 3,25", fill: "none", stroke: "currentColor", "stroke-width": 1.6, "stroke-linejoin": "round" }),
+// The data page of a passport: header, portrait and fields, machine-readable strip.
+function passportPage(d: Document, title: string): Child[] {
+  const [m1, m2] = mrzLines(d);
+  return [
+    h("div", { class: "doc-head" }, starRing(), titleSpan(title), h("span", { class: "pp-type" }, label("passport_type"), h("br"), label("passport_code"))),
+    waveBand(226, 10, 4, "wave-band pp-band"),
+    body(d),
+    h("div", { class: "mrz", "aria-hidden": "true" }, h("div", {}, m1), h("div", {}, m2)),
+    sheen(),
+  ];
+}
+
+// Closed cover: dark navy, gold-foil style generic lettering and a plain star device.
+function passportCover(): HTMLElement {
+  return h(
+    "div",
+    { class: "face front pp-cover" },
+    h("span", { class: "cover-country" }, DOC_COPY.cover_country),
+    coverDevice(),
+    h("span", { class: "cover-title" }, DOC_COPY.cover_title),
+    h("span", { class: "cover-chip", "aria-hidden": "true" }),
+    sheen(),
+  );
+}
+
+// Open book: a blank visa page on the left, the data page on the right.
+function passportBook(d: Document, title: string): HTMLElement {
+  return h(
+    "div",
+    { class: "face back book" },
+    h("div", { class: "pp-left", "aria-hidden": "true" }, h("span", { class: "pp-left-title" }, DOC_COPY.visa_page), h("span", { class: "pp-ruled" })),
+    h("div", { class: "pp-data" }, ...passportPage(d, title)),
   );
 }
 
@@ -209,7 +271,7 @@ function sdBack(d: Document): HTMLElement {
       "div",
       { class: "sd-bottom-right" },
       rows.birth_date === null ? null : h("div", { class: "fp" }, rows.birth_date),
-      stateOutline(),
+      stateOutlineMark("SD"),
     ),
     foil(),
     sheen(),
@@ -217,7 +279,7 @@ function sdBack(d: Document): HTMLElement {
 }
 
 function back(d: Document): HTMLElement {
-  if (d.type === "sd_drivers_license") return sdBack(d);
+  if (backKind(d) === "sd") return sdBack(d);
   const fine = finePrintFor(d);
   const patterned = d.type === "other_state_drivers_license" || d.type === "other_state_nondriver_id";
   return h(
@@ -236,8 +298,11 @@ function back(d: Document): HTMLElement {
   );
 }
 
+// A real passport opens like a book; a photocopy is a flat copy of the data page and does not.
+export const isBook = (d: Document): boolean => isBookPassport(d);
+
 export function flippable(d: Document): boolean {
-  return FLIPPABLE_TYPES.includes(d.type);
+  return FLIPPABLE_TYPES.includes(d.type) || isBook(d);
 }
 
 export function toggleFlip(card: HTMLElement): void {
@@ -245,12 +310,25 @@ export function toggleFlip(card: HTMLElement): void {
   const flipped = card.classList.toggle("flipped");
   const btn = card.querySelector<HTMLButtonElement>("button.flip");
   btn?.setAttribute("aria-pressed", String(flipped));
+  if (btn !== null && btn.dataset["openText"] !== undefined) {
+    btn.textContent = flipped ? (btn.dataset["closeText"] ?? "") : btn.dataset["openText"];
+    btn.setAttribute("aria-label", (flipped ? btn.dataset["closeLabel"] : btn.dataset["openLabel"]) ?? "");
+  }
   card.dispatchEvent(new CustomEvent("cardflip", { bubbles: true }));
 }
 
 const PAPER_TYPES: readonly string[] = ["birth_certificate", "consular_report_of_birth_abroad", "certificate_of_naturalization"];
 
-export function renderCard(d: Document): HTMLElement {
+export function renderCard(d: Document, as_of?: ISODate): HTMLElement {
+  renderAsOf = as_of;
+  try {
+    return renderCardInner(d);
+  } finally {
+    renderAsOf = undefined;
+  }
+}
+
+function renderCardInner(d: Document): HTMLElement {
   const title = narrative.doc_types[d.type] ?? d.type;
   const card = shell(d.type, title, `${d.is_photocopy ? "copy" : ""} ${flippable(d) ? "flippable" : ""}`, d.doc_id);
   if (d.type === "other_state_drivers_license" || d.type === "other_state_nondriver_id") {
@@ -261,6 +339,10 @@ export function renderCard(d: Document): HTMLElement {
     card.style.setProperty("--tint", st.tint);
   }
   if (d.type === "other_unrecognized") card.setAttribute("data-kind", cardKind(d.doc_id));
+  if (isBook(d)) {
+    renderBook(card, d, title);
+    return card;
+  }
   card.append(front(d, title));
   if (flippable(d)) {
     card.append(
@@ -278,22 +360,98 @@ export function renderCard(d: Document): HTMLElement {
   return card;
 }
 
+// A closed passport is a cover; Enter, Space, a click (not a drag), F or the button opens it. Fields
+// on the data page keep their data-field keys, so denial-source picking works once it is open.
+function renderBook(card: HTMLElement, d: Document, title: string): void {
+  card.classList.add("book-doc");
+  card.append(
+    passportCover(),
+    passportBook(d, title),
+    h("button", {
+      class: "flip",
+      type: "button",
+      "aria-label": `${title}: ${DOC_COPY.open_label}`,
+      "aria-pressed": "false",
+      "data-open-text": DOC_COPY.open,
+      "data-close-text": DOC_COPY.close,
+      "data-open-label": `${title}: ${DOC_COPY.open_label}`,
+      "data-close-label": `${title}: ${DOC_COPY.close_label}`,
+      onclick: () => toggleFlip(card),
+    }, DOC_COPY.open),
+  );
+  let down: [number, number] | null = null;
+  card.addEventListener("pointerdown", (e) => { down = [e.clientX, e.clientY]; });
+  card.addEventListener("click", (e) => {
+    if (card.classList.contains("flipped") || card.classList.contains("src-target")) return;
+    if ((e.target as HTMLElement).closest("button") !== null) return;
+    if (down !== null && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 4) return;
+    toggleFlip(card);
+  });
+  card.addEventListener("keydown", (e) => {
+    if (e.target !== card || (e.key !== "Enter" && e.key !== " ") || card.classList.contains("src-target")) return;
+    e.preventDefault();
+    toggleFlip(card);
+  });
+}
+
 const formHead = (title: string, no: string): HTMLElement =>
   h("div", { class: "doc-head" }, titleSpan(title), h("span", { class: "form-no" }, no));
 
+// Voter registration application: a letter-size page (8.5 x 11) shown at reduced scale, numbered
+// sections down the left with bold labels and light blue input boxes. Only the name and the declared
+// birth date are real; every other box is a blank stand-in. The fields keep data-field keys so a
+// denial source can be picked, and .form-impression (stamp) attaches to the card itself.
+const vrSec = (n: number, name: string, ...inputs: Child[]): HTMLElement =>
+  h(
+    "div",
+    { class: `vr-sec vr-s${n}` },
+    h("div", { class: "vr-lab" }, h("span", { class: "vr-n" }, String(n)), h("span", { class: "vr-name" }, name)),
+    h("div", { class: "vr-in" }, ...inputs),
+  );
+const vrBlank = (cls = ""): HTMLElement => h("div", { class: `vr-box ${cls}`.trim(), "aria-hidden": "true" }, h("span", { class: "vr-hint" }));
+const vrCheck = (text: string): HTMLElement => h("span", { class: "vr-yn" }, h("span", { class: "vr-cb" }), text);
+const vrQuestion = (q: string): HTMLElement =>
+  h("div", { class: "vr-q", "aria-hidden": "true" }, h("span", { class: "vr-qt" }, q), vrCheck(FORM_COPY.yes), vrCheck(FORM_COPY.no));
+
 export function renderForm(app: Application): HTMLElement {
+  // Section 5 shows the residency declaration's address. Its fields keep the declaration's identity
+  // (doc id and type), so choosing it as a denial source names the residency declaration.
+  const res = app.residency_declaration;
+  const addr = h("dl", { class: "fields vr-addr" }, row(label("address"), addressText(res), true, "address", true));
+  const addrRow = addr.firstElementChild as HTMLElement | null;
+  if (addrRow !== null) {
+    addrRow.dataset["srcDocId"] = res.doc_id;
+    addrRow.dataset["srcType"] = "residency_declaration";
+  }
   const title = label("form_title");
   const card = shell("application_form", title, "", app.application_id);
   card.append(
     h(
       "div",
-      { class: "face front" },
-      formHead(title, label("form_number_vr")),
+      { class: "face front vr-page" },
+      h("div", { class: "doc-head" }, titleSpan(title)),
       h("p", { class: "doc-instr" }, label("form_instruction")),
       h(
         "div",
-        { class: "doc-body" },
-        h("dl", { class: "fields" }, row(label("name"), app.applicant_name, false, "name"), row(label("birth_date"), formatPrinted(app.declared_birth_date), false, "birth_date")),
+        { class: "vr-secs" },
+        vrSec(1, FORM_COPY.sec_eligibility, vrQuestion(FORM_COPY.q_citizen), vrQuestion(FORM_COPY.q_age)),
+        vrSec(2, FORM_COPY.sec_birthdate, h("dl", { class: "fields" }, row(label("birth_date"), formatPrinted(app.declared_birth_date), true, "birth_date"))),
+        vrSec(
+          3,
+          FORM_COPY.sec_name,
+          h("dl", { class: "fields" }, row(label("name"), app.applicant_name, true, "name")),
+          h("div", { class: "vr-parts", "aria-hidden": "true" }, ...FORM_COPY.name_parts.map((p) => h("span", {}, p))),
+        ),
+        vrSec(4, FORM_COPY.sec_ident, vrBlank("half"), vrBlank("half")),
+        vrSec(5, FORM_COPY.sec_residence, addr),
+        vrSec(6, FORM_COPY.sec_mailing, vrBlank("tall")),
+        vrSec(7, FORM_COPY.sec_party, vrBlank()),
+        vrSec(
+          8,
+          FORM_COPY.sec_declaration,
+          h("div", { class: "vr-decl", "aria-hidden": "true" }, FORM_COPY.declaration),
+          h("div", { class: "vr-sign", "aria-hidden": "true" }, h("span", { class: "vr-sig" }, FORM_COPY.signature), h("span", { class: "vr-dt" }, FORM_COPY.date)),
+        ),
       ),
       h(
         "div",
@@ -301,6 +459,7 @@ export function renderForm(app: Application): HTMLElement {
         h("span", { class: "office-title" }, label("office_use")),
         h("span", { class: "office-cell" }, label("office_received")),
         h("span", { class: "office-cell" }, label("office_initials")),
+        h("span", { class: "form-no" }, label("form_number_vr")),
       ),
     ),
   );

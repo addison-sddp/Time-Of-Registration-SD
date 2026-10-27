@@ -1,4 +1,4 @@
-import { isSaveV1, type SaveV1 } from "./schema";
+import { isSaveV1, sanitizeNotes, type SaveV1 } from "./schema";
 
 export const CURRENT_SCHEMA_VERSION = 1;
 
@@ -43,6 +43,9 @@ export function migrate(raw: unknown): MigrateResult {
     return { status: "invalid", reason: "migration failed" };
   }
   if (migrated === null) return { status: "invalid", reason: "no migration path" };
+  // Work on a copy so raw is never mutated.
+  migrated = { ...migrated };
+  sanitizeNotes(migrated);
   return isSaveV1(migrated)
     ? { status: "ok", save: migrated }
     : { status: "invalid", reason: "does not match the save schema" };

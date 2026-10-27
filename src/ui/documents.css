@@ -55,22 +55,56 @@
 }
 .doc .emboss svg { width: 100%; height: 100%; display: block; filter: drop-shadow(1px 1px 0 rgba(255, 255, 255, 0.9)) drop-shadow(-1px -1px 0 rgba(0, 0, 0, 0.35)); }
 
-/* ------------------------------------------------------------ voter registration form (typewriter) */
+/* ------------------------------------------------------------ voter registration form (letter page, scaled) */
+/* 8.5 x 11 proportion at 190 x 246 px: it fits its column on the desk. Header padding keeps the title
+   and number clear of a folded corner on either side (fold is at most 22px). */
 .doc[data-type="application_form"] {
   --accent: #27374F; --mid: #6C7A8E; background: #F8F5EA; border: 1px solid #A39C86; border-radius: 1px;
-  font-family: var(--font-type);
+  font-family: var(--font-type); box-sizing: border-box; width: 190px; height: 246px; min-height: 246px; font-size: 10px;
 }
-.doc[data-type="application_form"] .doc-head { background: none; color: var(--accent); border-bottom: 2px solid var(--accent); padding: 0.5em 0.6em 0.3em; gap: 0.5em; }
-.doc[data-type="application_form"] .doc-title { text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.95em; }
-.doc .form-no { font-size: 0.68em; font-weight: normal; border: 1px solid currentColor; padding: 0 0.4em; white-space: nowrap; }
+.doc[data-type="application_form"] .face { min-height: 0; height: 100%; display: flex; flex-direction: column; }
+.doc[data-type="application_form"] .doc-head { background: none; color: var(--accent); border-bottom: 2px solid var(--accent); padding: 5px 24px 2px; gap: 4px; justify-content: flex-start; }
+.doc[data-type="application_form"] .doc-title { text-transform: uppercase; letter-spacing: 0.02em; font-size: 6.6px; line-height: 1.15; white-space: nowrap; }
+.doc .form-no { font-size: 5.5px; font-weight: normal; border: 1px solid currentColor; padding: 0 3px; white-space: nowrap; margin-left: auto; }
 .doc .doc-instr { margin: 0; padding: 0.3em 0.7em 0; font-size: 0.62em; line-height: 1.25; color: #55524A; font-style: italic; }
-.doc[data-type="application_form"] .doc-body { padding: 5px 8px 6px; }
-.doc[data-type="application_form"] .field { border: 1px solid rgba(39, 55, 79, 0.55); background: rgba(255, 255, 255, 0.6); padding: 1px 4px 3px; margin-bottom: 4px; }
-.doc[data-type="application_form"] dt { font-size: 0.66em; opacity: 0.85; }
-.doc[data-type="application_form"] dd { font-weight: bold; min-height: 1.3em; }
-.doc .office { display: flex; gap: 4px; align-items: stretch; margin: 2px 8px 8px; padding: 3px 4px; border: 1px dashed #7A7766; font-size: 0.62em; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0 3px, transparent 3px 6px); }
-.doc .office-title { flex: 1; align-self: center; text-transform: uppercase; letter-spacing: 0.06em; }
-.doc .office-cell { flex: 0 0 28%; border: 1px solid #77756A; background: rgba(255, 255, 255, 0.7); padding: 0 3px 8px; }
+.doc[data-type="application_form"] .doc-instr { padding: 2px 8px 2px; font-size: 5.6px; }
+.doc[data-type="application_form"] .vr-secs { flex: 1; display: flex; flex-direction: column; padding: 0 6px; min-height: 0; }
+.doc[data-type="application_form"] .vr-sec { display: grid; grid-template-columns: 50px 1fr; column-gap: 3px; border-top: 1px solid rgba(39, 55, 79, 0.45); padding: 2px 0; flex: 1 1 auto; }
+.doc[data-type="application_form"] .vr-sec.vr-s1 { flex-grow: 1.4; }
+.doc[data-type="application_form"] .vr-sec.vr-s3 { flex-grow: 1.7; }
+.doc[data-type="application_form"] .vr-sec.vr-s5, .doc[data-type="application_form"] .vr-sec.vr-s6 { flex-grow: 1.4; }
+.doc[data-type="application_form"] .vr-sec.vr-s8 { flex-grow: 2; }
+.doc[data-type="application_form"] .vr-lab { font-family: var(--font-sans); font-weight: 800; font-size: 5px; line-height: 1.15; color: var(--accent); text-transform: uppercase; letter-spacing: 0; overflow: hidden; display: flex; gap: 2px; align-items: flex-start; }
+.doc[data-type="application_form"] .vr-n { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); color: #FFF; text-align: center; line-height: 8px; font-size: 5.4px; }
+.doc[data-type="application_form"] .vr-in { display: flex; flex-direction: column; gap: 2px; min-width: 0; justify-content: center; }
+.doc[data-type="application_form"] .vr-in .fields { margin: 0; }
+.doc[data-type="application_form"] .vr-addr .field { min-height: 20px; border: 1px solid #9DB9DA; background: #E6F0FB; padding: 1px 3px; margin: 0; }
+.doc[data-type="application_form"] .vr-addr dt { display: none; }
+.doc[data-type="application_form"] .vr-addr dd { line-height: 1.15; }
+.doc[data-type="application_form"] .field {
+  border: 1px solid #7FA3CF; background: #D9E8F8; padding: 0 3px 1px; margin: 0; display: flex; flex-direction: column;
+}
+.doc[data-type="application_form"] dt { font-size: 4.6px; line-height: 1.2; opacity: 0.8; letter-spacing: 0.04em; }
+.doc[data-type="application_form"] dd { font-weight: bold; font-size: 8.4px; line-height: 1.15; min-height: 8px; margin: 0; overflow-wrap: anywhere; }
+.doc[data-type="application_form"] .vr-box { border: 1px solid #9DB9DA; background: #E6F0FB; min-height: 9px; flex: 1 1 0; position: relative; }
+.doc[data-type="application_form"] .vr-in:has(.half) { flex-direction: row; gap: 3px; }
+.doc[data-type="application_form"] .vr-box.half { flex: 1 1 0; min-height: 9px; }
+.doc[data-type="application_form"] .vr-box.tall { min-height: 12px; }
+.doc[data-type="application_form"] .vr-hint { position: absolute; left: 3px; top: 50%; width: 46%; height: 2px; margin-top: -1px; background: rgba(90, 90, 90, 0.28); }
+.doc[data-type="application_form"] .vr-q { display: flex; align-items: center; gap: 3px; font-size: 4.7px; line-height: 1.15; }
+.doc[data-type="application_form"] .vr-qt { flex: 1; min-width: 0; }
+.doc[data-type="application_form"] .vr-yn { display: inline-flex; align-items: center; gap: 1px; font-size: 4.7px; }
+.doc[data-type="application_form"] .vr-cb { width: 5px; height: 5px; border: 1px solid #5B7FAE; background: #E6F0FB; display: inline-block; }
+.doc[data-type="application_form"] .vr-parts { display: flex; justify-content: space-between; font-size: 4.4px; color: #6A6A66; text-transform: uppercase; letter-spacing: 0.04em; padding: 0 2px; }
+.doc[data-type="application_form"] .vr-decl { font-size: 5px; line-height: 1.2; color: #55524A; font-style: italic; }
+.doc[data-type="application_form"] .vr-sign { display: flex; gap: 6px; font-size: 4.6px; color: #6A6A66; text-transform: uppercase; }
+.doc[data-type="application_form"] .vr-sig { flex: 1; border-top: 1px solid #5B7FAE; padding-top: 1px; background: linear-gradient(#E6F0FB, #E6F0FB) 0 0 / 100% 7px no-repeat; }
+.doc[data-type="application_form"] .vr-dt { flex: 0 0 36%; border-top: 1px solid #5B7FAE; padding-top: 1px; background: linear-gradient(#E6F0FB, #E6F0FB) 0 0 / 100% 7px no-repeat; }
+.doc .office { display: flex; gap: 3px; align-items: center; margin: 2px 6px 4px; padding: 1px 3px; border: 1px dashed #7A7766; font-size: 5px; background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.05) 0 3px, transparent 3px 6px); }
+.doc .office-title { flex: 1; text-transform: uppercase; letter-spacing: 0.02em; white-space: nowrap; font-size: 4.4px; }
+.doc .office-cell { flex: 0 0 20%; white-space: nowrap; border: 1px solid #77756A; background: rgba(255, 255, 255, 0.7); padding: 0 2px 4px; }
+/* Stamp impression sits over the declaration and signature area. */
+.doc[data-type="application_form"] > .form-impression { left: 40px; top: 150px; transform: scale(0.8); transform-origin: top left; }
 
 /* ------------------------------------------------------------ residency declaration (ruled pad) */
 .doc[data-type="residency_declaration"] { --accent: #3E5E4C; --mid: #7A9A86; background: #EDF1E3; border: 1px solid #98A58A; border-radius: 1px; }
@@ -216,6 +250,44 @@
   background: linear-gradient(90deg, transparent 46%, rgba(0, 0, 0, 0.3) 46% 54%, transparent 54%), linear-gradient(0deg, transparent 46%, rgba(0, 0, 0, 0.3) 46% 54%, transparent 54%), linear-gradient(135deg, #E8CE7A, #B8932F);
 }
 
+/* ------------------------------------------------------------ passport book (closed cover, open spread) */
+.doc.book-doc { width: 150px; min-height: 206px; background: #14213D; border: 1px solid #0A1226; border-radius: 3px 8px 8px 3px; box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35), inset 3px 0 0 #0B1630; cursor: pointer; }
+.doc.book-doc .face { min-height: 204px; }
+.doc.book-doc.flipped { width: 296px; min-height: 0; background: #E9EEF4; cursor: auto; box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35); }
+.doc.book-doc.flipped .face.back { min-height: 168px; }
+.doc.book-doc .pp-cover {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 22px 10px 14px; box-sizing: border-box; min-height: 204px;
+  color: #D9BC59; text-align: center; font-family: var(--font-serif); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  background: radial-gradient(ellipse at 40% 30%, #1E3158, #101B33 70%);
+}
+.doc.book-doc .cover-country { font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; }
+.doc.book-doc .cover-device { width: 62px; height: 62px; margin: 8px 0 4px; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5)); }
+.doc.book-doc .cover-title { font-size: 17px; font-weight: bold; letter-spacing: 0.2em; }
+.doc.book-doc .cover-chip { margin-top: auto; width: 22px; height: 15px; border: 1.5px solid #D9BC59; border-radius: 3px; opacity: 0.8; position: relative; }
+.doc.book-doc .cover-chip::after { content: ""; position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border: 1.5px solid #D9BC59; border-radius: 50%; }
+.doc.book-doc .pp-cover .sheen { background: linear-gradient(115deg, transparent 30%, rgba(255, 255, 255, 0.12) 45%, transparent 60%); }
+.doc.book-doc.flipped .book { display: flex; transform-origin: left center; }
+.doc.book-doc:not(.flipped) .book { display: none; }
+.doc.book-doc .pp-left {
+  flex: 0 0 70px; position: relative; background: linear-gradient(90deg, #DDE5EE, #EAEFF5 85%, #C9D3DF); border-right: 1px solid rgba(0, 0, 0, 0.25);
+  display: flex; flex-direction: column; padding: 8px 6px; gap: 6px; color: #6B7C93;
+}
+.doc.book-doc .pp-left-title { font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.1em; font-size: 8px; text-align: center; }
+.doc.book-doc .pp-ruled { flex: 1; background: repeating-linear-gradient(180deg, transparent 0 11px, rgba(77, 120, 168, 0.35) 11px 12px); border: 1px solid rgba(77, 120, 168, 0.3); }
+.doc.book-doc .pp-data { flex: 1 1 auto; min-width: 0; position: relative; width: 226px; }
+.doc.book-doc .pp-data .doc-head { background: linear-gradient(90deg, #10203A, #1B3560); color: #F0E7C8; font-family: var(--font-serif); font-variant: small-caps; letter-spacing: 0.06em; align-items: center; justify-content: flex-start; gap: 0.5em; }
+.doc.book-doc .pp-data .emblem.stars { width: 2em; height: 2em; color: #D9BC59; }
+.doc.book-doc .pp-data .pp-type { margin-left: auto; font-family: var(--font-mono); font-variant: normal; font-size: 0.6em; font-weight: normal; text-align: right; letter-spacing: 0.04em; }
+.doc.book-doc .pp-data .pp-band { display: block; width: 100%; height: 10px; color: #4D78A8; opacity: 0.55; }
+.doc.book-doc .pp-data .mrz { font-family: var(--font-mono); font-size: 0.52em; line-height: 1.4; white-space: pre; overflow: hidden; background: rgba(255, 255, 255, 0.78); border-top: 1px solid rgba(0, 0, 0, 0.25); padding: 2px 6px 3px; }
+.doc.book-doc .pp-data { background: linear-gradient(120deg, #EAF0F6 0%, #D9E4EF 45%, #F2F6FA 100%); }
+.doc.book-doc.flipped button.flip { top: 4px; right: 4px; bottom: auto; }
+.doc.book-doc:not(.flipped) button.flip { right: 6px; bottom: 6px; background: #1E3158; color: #D9BC59; border: 1px solid #D9BC59; }
+.doc.book-doc.flipped .book { animation: pp-open 0.28s steps(5, end) backwards; }
+@keyframes pp-open { from { transform: scaleX(0.4); opacity: 0.4; } to { transform: scaleX(1); opacity: 1; } }
+:root[data-reduced-motion="1"] .doc.book-doc .book { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .doc.book-doc .book { animation: none !important; } }
+
 /* ------------------------------------------------------------ photocopies: flat, gray, toner speckle, no sheen */
 .doc.copy {
   --accent: #555 !important; --mid: #8C8C8C !important; --tint: #ECECEA !important; --paper: #E6E6E3;
@@ -242,3 +314,32 @@
 .doc .fields.grid dd { line-height: 1.15; }
 .doc .fields.grid dt { line-height: 1.1; }
 .doc .fields.grid .field:not(.wide) dd { white-space: nowrap; overflow-wrap: normal; }
+.doc .office .form-no { flex: none; margin-left: 0; font-size: 4.2px; padding: 0 2px; }
+.doc .office .office-cell { flex-basis: 16%; }
+
+/* State-shaped emblems (top left of licenses and ID cards). */
+.doc .emblem.state-shape { width: auto; height: 1.7em; max-width: 3em; }
+.doc[data-type="sd_drivers_license"] .emblem.state-shape { color: var(--muted-gold); height: 1.55em; }
+.doc[data-type="other_state_drivers_license"] .doc-state { display: inline-flex; align-items: center; gap: 0.2em; }
+.doc[data-type="other_state_drivers_license"] .doc-state .emblem.state-shape { height: 1.05em; max-width: 1.4em; color: var(--accent); }
+.doc[data-type="other_state_nondriver_id"] .side-band .emblem.state-shape { width: 18px; height: 18px; max-width: none; }
+.doc .emblem.state-shape.generic { width: 1.6em; height: 1.6em; }
+
+/* Card fields: keep printed dates inside their column so a date never runs into the next field. */
+.doc .fields.grid .field:not(.wide) dd { font-size: 0.8em; letter-spacing: -0.02em; }
+.doc[data-type="sd_drivers_license"] .doc-body { padding-right: 11px; gap: 6px; }
+.doc .fields.grid { column-gap: 2px; }
+.doc[data-type="other_state_nondriver_id"] .fields.grid .field:not(.wide) dd { font-size: 0.7em; letter-spacing: -0.03em; }
+.doc[data-type="other_state_nondriver_id"] .doc-body { padding-right: 5px; gap: 6px; }
+.doc[data-type="certificate_of_naturalization"] .doc-body { padding-left: 12px; padding-right: 12px; }
+
+/* SD back: the digit box sits left of the barcode, never on top of it; the flip button sits below the
+   barcode on the right so it covers neither the barcode nor the bottom rows. */
+.doc .sd-back .micro {
+  left: 6px; top: 8px; width: 46px; height: 34px; box-sizing: border-box; padding: 2px 3px; overflow: hidden;
+  font-family: var(--font-mono); font-size: 6px; line-height: 1.25; letter-spacing: 0; word-break: break-all;
+  background: #FFFFFF; color: #222222; border: 1px solid #8A94A3;
+}
+.doc .sd-back .sd-stripe { margin: 8px 12px 0 60px; }
+.doc.flipped[data-type="sd_drivers_license"] button.flip { top: 52px; right: 12px; bottom: auto; }
+.doc.copy .sd-back .micro { background: #F2F2F0; }

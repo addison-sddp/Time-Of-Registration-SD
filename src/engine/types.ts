@@ -15,6 +15,8 @@ export type DocumentType =
   | "residency_declaration"
   | "other_unrecognized";
 
+export type Sex = "M" | "F";
+
 export interface Document {
   doc_id: string;
   type: DocumentType;
@@ -25,6 +27,8 @@ export interface Document {
   citizenship_verified_marker: boolean | null;
   name: string | null;
   birth_date: ISODate | null;
+  // Printed sex marker. Display and portrait only: no rule reads it and no rule may declare it.
+  sex: Sex | null;
   address_line: string | null;
   address_city: string | null;
   address_state: string | null;

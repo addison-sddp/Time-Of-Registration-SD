@@ -1,18 +1,18 @@
 import { clampI, painter, type PixelGrid } from "./pixelart";
 
-// A 16-bit desk flag: a thin dark pole with a gold spear tip, a wavy cloth with three shaded
-// folds, and a round two-tier gold base. The cloth follows the Sioux Falls flag (a public-domain
-// design): blue field with a gold sun at the upper left, a red field below, and the stepped
-// white and blue bands between them, simplified to pixels. Hue-shifted 3 to 5 tone ramps, light
-// from the upper left, outlines in each material's darkest tone.
+// A 16-bit wall flag for the booth's back wall: a short horizontal rod with a gold ball at each
+// end, and a cloth hung from it with soft vertical folds and a hem that sags toward the middle (no
+// wind, no animation). The cloth follows the Sioux Falls flag (a public-domain design): blue field
+// with a gold sun at the upper left, a red field below, and the stepped white and blue bands
+// between them, simplified to pixels. Hue-shifted 3 to 5 tone ramps, light from the upper left,
+// outlines in each material's darkest tone.
 
-export const FLAG_W = 44;
-export const FLAG_H = 68;
-const CLOTH_W = 32;
-const CLOTH_H = 22;
-const CLOTH_X = 12;
-const CLOTH_Y = 9;
-const POLE_X = 10; // pole columns are POLE_X and POLE_X + 1
+export const FLAG_W = 22;
+export const FLAG_H = 18;
+const CLOTH_X = 1;
+const CLOTH_W = 20;
+const CLOTH_H = 13; // rows before the sag; the middle hangs lower
+const ROD_Y = 0;
 
 // Tones are dark to light.
 export const FLAG_RAMPS = {
@@ -21,14 +21,16 @@ export const FLAG_RAMPS = {
   white: ["#9AA7C4", "#E9EEF7", "#FFFFFF"],
   red: ["#8C2434", "#C63843", "#D9505B"],
   gold: ["#7A4E10", "#B97F1A", "#EFB71B", "#FFD95A", "#FFF2B0"],
-  pole: ["#241C2E", "#3F3549", "#6B5F78"],
+  rod: ["#241C2E", "#3F3549", "#6B5F78"],
 } as const;
 type RampName = keyof typeof FLAG_RAMPS;
 
-// Red top edge per cloth column: four steps rising to the right, joined by short risers.
+// Red top edge per column of the flat 32 x 22 design: four steps rising to the right.
 const KNOTS: readonly (readonly [number, number])[] = [
   [0, 19], [14, 19], [16, 15], [19, 15], [21, 11], [24, 11], [26, 7], [32, 7],
 ];
+const FLAT_W = 32;
+const FLAT_H = 22;
 function redTop(x: number): number {
   for (let i = 1; i < KNOTS.length; i++) {
     const a = KNOTS[i - 1]!;
@@ -38,24 +40,26 @@ function redTop(x: number): number {
   return 7;
 }
 
-const arg = (x: number): number => x * 0.33 + 0.5;
-const wave = (x: number): number => Math.round(Math.sin(arg(x)) * (0.4 + (1.6 * x) / (CLOTH_W - 1)) + x * 0.07);
-// Fold tone: 0 shade, 1 mid, 2 lit. The cloth gathers into shade at the pole.
+// Vertical drape folds: tone 0 shade, 1 mid, 2 lit. The cloth gathers into shade at both ends.
+const arg = (x: number): number => x * 0.95 + 0.6;
 const fold = (x: number): number => {
-  if (x < 2) return 0;
+  if (x < 1 || x > CLOTH_W - 2) return 0;
   const c = Math.cos(arg(x));
   return c > 0.5 ? 0 : c < -0.5 ? 2 : 1;
 };
+// The hem sags toward the middle; lit ridges hang a little lower than the shaded valleys.
+const hemLength = (x: number): number =>
+  CLOTH_H + Math.round(2.4 * Math.sin((Math.PI * (x + 0.5)) / CLOTH_W)) + (Math.cos(arg(x)) < -0.3 ? 1 : 0);
 
 function sunTone(dx: number, dy: number): number {
   const s = dx + dy;
-  return s < -2.2 ? 4 : s < 0.2 ? 3 : s < 2.6 ? 2 : 1;
+  return s < -1.4 ? 4 : s < 0.2 ? 3 : s < 1.8 ? 2 : 1;
 }
 function inSun(dx: number, dy: number): boolean {
   const r = Math.hypot(dx, dy);
   const a = Math.atan2(dy, dx);
   const spike = Math.max(0, Math.cos(8 * a)) ** 2;
-  return r <= 3.3 + 1.5 * spike;
+  return r <= 1.9 + 0.8 * spike;
 }
 
 export function flagPixels(): PixelGrid {
@@ -69,25 +73,12 @@ export function flagPixels(): PixelGrid {
     owner.set(y * FLAG_W + x, r);
   };
 
-  // Pole and finial.
-  for (let y = 6; y <= 53; y++) {
-    p.put(POLE_X, y, idx("pole", 1));
-    p.put(POLE_X + 1, y, idx("pole", 0));
-    if (y % 11 < 3) p.put(POLE_X, y, idx("pole", 2));
-  }
-  const G = (t: number): number => idx("gold", t);
-  p.put(10, 0, G(4)); p.put(11, 0, G(2));
-  p.put(9, 1, G(3)); p.put(10, 1, G(4)); p.put(11, 1, G(2)); p.put(12, 1, G(1));
-  p.put(9, 2, G(3)); p.put(10, 2, G(3)); p.put(11, 2, G(2)); p.put(12, 2, G(0));
-  p.put(10, 3, G(3)); p.put(11, 3, G(1));
-  p.put(8, 4, G(0)); p.put(9, 4, G(2)); p.put(10, 4, G(4)); p.put(11, 4, G(2)); p.put(12, 4, G(1)); p.put(13, 4, G(0));
-  p.put(9, 5, G(1)); p.put(10, 5, G(2)); p.put(11, 5, G(1)); p.put(12, 5, G(0));
-
-  // Cloth, composed flat and then moved by the wave column by column.
+  // Cloth, hung from the rod.
   for (let x = 0; x < CLOTH_W; x++) {
-    const top = redTop(x);
+    const top = Math.round((redTop(Math.floor((x * FLAT_W) / CLOTH_W)) * CLOTH_H) / FLAT_H);
     const f = fold(x);
-    for (let y = 0; y < CLOTH_H; y++) {
+    const len = hemLength(x);
+    for (let y = 0; y < len; y++) {
       let r: RampName;
       let t = f;
       const d = top - y; // rows above the red edge
@@ -95,52 +86,30 @@ export function flagPixels(): PixelGrid {
       else if (d === 1 || d === 3 || d === 5) r = "white";
       else if (d === 2 || d === 4) r = "bar";
       else r = "blue";
-      // The sun sits in the blue field at the upper left.
-      const sx = x + 0.5 - 6.5;
-      const sy = y + 0.5 - 6.5;
+      const sx = x + 0.5 - 4.5;
+      const sy = y + 0.5 - 3.5;
       if (r === "blue" && inSun(sx, sy)) {
         r = "gold";
         t = clampI(sunTone(sx, sy) + (f - 1), 1, 4);
       }
-      own(CLOTH_X + x, CLOTH_Y + y + wave(x), r, t);
+      if (y === 0) t = Math.max(0, t - 1); // gathered under the rod
+      if (y >= len - 1 && r !== "gold") t = Math.max(0, t - 1); // the hem turns under, a little darker
+      own(CLOTH_X + x, ROD_Y + 1 + y, r, t);
     }
   }
   // Outline pass: cloth pixels touching empty space take their ramp's darkest tone.
   for (const [key, r] of owner) {
     const x = key % FLAG_W;
     const y = (key - x) / FLAG_W;
-    if (p.get(x - 1, y) === 0 || p.get(x + 1, y) === 0 || p.get(x, y - 1) === 0 || p.get(x, y + 1) === 0) {
-      p.put(x, y, idx(r, 0));
-    }
-  }
-  // Gold rings where the cloth meets the pole.
-  for (const y of [CLOTH_Y + 2, CLOTH_Y + CLOTH_H - 3]) {
-    p.put(POLE_X, y, G(3));
-    p.put(POLE_X + 1, y, G(1));
+    if (p.get(x - 1, y) === 0 || p.get(x + 1, y) === 0 || p.get(x, y + 1) === 0) p.put(x, y, idx(r, 0));
   }
 
-  // Base: a domed upper tier and a wide lower tier; half widths from the pole's centre line.
-  const tiers: { y0: number; w: number[] }[] = [
-    { y0: 52, w: [3, 5, 6, 6, 6, 6, 7] },
-    { y0: 59, w: [9, 10, 11, 11, 11, 10, 9, 7] },
-  ];
-  for (const tier of tiers) {
-    tier.w.forEach((w, i) => {
-      const y = tier.y0 + i;
-      const last = tier.w.length - 1;
-      for (let x = 11 - w; x <= 10 + w; x++) {
-        const u = (x - 10.5) / w;
-        const edge = x === 11 - w || x === 10 + w || i === 0 || i === last;
-        let t = u < -0.3 ? 3 : u < 0.35 ? 2 : 1;
-        if (i === 1 && u < 0.25) t = 4;
-        if (i === last - 1) t = Math.max(0, t - 1);
-        p.put(x, y, G(edge ? (i === last || x === 10 + w ? 0 : 1) : t));
-      }
-    });
-  }
-  // Highlights on the lower tier and a seam shadow under the upper one.
-  for (let x = 4; x <= 7; x++) p.put(x, 61, G(4));
-  p.put(3, 62, G(3)); p.put(4, 62, G(4));
-  for (let x = 5; x <= 16; x++) p.put(x, 59, G(1));
+  // The rod and its gold end balls, drawn last so the cloth tucks under it.
+  for (let x = 1; x < FLAG_W - 1; x++) p.put(x, ROD_Y, idx("rod", x % 7 < 3 ? 2 : 1));
+  const G = (t: number): number => idx("gold", t);
+  p.put(0, ROD_Y, G(3));
+  p.put(FLAG_W - 1, ROD_Y, G(1));
+  p.put(0, ROD_Y + 1, G(1));
+  p.put(FLAG_W - 1, ROD_Y + 1, G(0));
   return p.grid;
 }

@@ -43,6 +43,8 @@
                                                                                 "address_city":  "Fairmont Ridge",
                                                                                 "address_state":  "SD",
                                                                                 "address_postal":  "57105",
+                                                                                "sex":  "F",
+
                                                                                 "portrait_seed":  48151623
                                                                             },
                                                             "residency_declaration":  {
@@ -59,6 +61,8 @@
                                                                                           "address_city":  "Fairmont Ridge",
                                                                                           "address_state":  "SD",
                                                                                           "address_postal":  "57105",
+                                                                                          "sex":  null,
+
                                                                                           "portrait_seed":  null
                                                                                       },
                                                             "citizenship_documents":  [
@@ -76,6 +80,8 @@
                                                                                               "address_city":  "Fairmont Ridge",
                                                                                               "address_state":  "SD",
                                                                                               "address_postal":  "57105",
+                                                                                              "sex":  "F",
+
                                                                                               "portrait_seed":  48151623
                                                                                           }
                                                                                       ]

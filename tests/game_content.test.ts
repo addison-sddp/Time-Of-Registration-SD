@@ -238,8 +238,9 @@ describe("pixel portraits", () => {
         }
         if (flips < 3) broken++;
       }
-    }    // Nearly every portrait has a ragged outline on both sides, not one solid block.
-    expect(broken).toBeLessThan(styled.length * 2 * 0.2);
+    }    // Most portraits have an uneven outline on both sides, not one solid block. Loose strands now
+    // hug the outline (never poke out more than a pixel), so the bar is looser than it was.
+    expect(broken).toBeLessThan(styled.length * 2 * 0.45);
   });  test("horizontal runs keep the rect count well under the pixel count", () => {
     const worst = Math.max(...grids.map(runs));
     expect(worst).toBeLessThan(CEILING);

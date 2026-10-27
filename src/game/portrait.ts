@@ -1,4 +1,4 @@
-import type { Application } from "../engine/types";
+import type { Application, Document, ISODate, Sex } from "../engine/types";
 import { createRng, hashSeed, type Rng } from "../gen/rng";
 
 // Procedural pixel-art portraits in a warm, stylized, storybook look. Parameters come from a
@@ -113,6 +113,15 @@ export interface PortraitParams {
   backdrop: string;
   detail_seed: number;
   face_shape: FaceShape;
+  // Present only when the portrait was asked for with traits (portraitParams(seed, traits)).
+  age_years?: number; // whole years the face is drawn at
+  wrinkles?: number; // 0..4 lines of age (crow's feet first, then eyes, cheeks, brow, chin)
+}
+
+// What a portrait is told about the person. Both are optional: null means "not printed".
+export interface PortraitTraits {
+  sex: Sex | null;
+  age: number | null; // whole years
 }
 
 // Limited palettes: a wide range of skin and hair tones.
@@ -141,7 +150,16 @@ const MOUTHS: readonly MouthKind[] = ["neutral", "smile", "flat"];
 const NECKLINES: readonly Neckline[] = ["crew", "collared", "v_neck", "sweater", "jacket"];
 const BROWS: readonly BrowShape[] = ["straight", "arched", "angled"];
 
-export function portraitParams(seed: number): PortraitParams {
+// Without traits this is exactly the seed-only face (existing seeds do not shift). With traits,
+// the same seed still gives the same person, nudged by sex (usually conventional presentation,
+// with seeded variation) and by age (gray or white hair, lines, a softer jaw, thinner hair).
+export function portraitParams(seed: number, traits?: PortraitTraits): PortraitParams {
+  const base = seedParams(seed);
+  if (traits === undefined || (traits.sex === null && traits.age === null)) return base;
+  return withTraits(base, seed, traits);
+}
+
+function seedParams(seed: number): PortraitParams {
   const rng = createRng(hashSeed("portrait", seed));
   const [skin, skin_shade] = rng.pick(SKIN_TONES);
   const age = rng.weighted<Age>([["young", 3], ["adult", 4], ["older", 2]]);
@@ -187,6 +205,124 @@ export function portraitParams(seed: number): PortraitParams {
     detail_seed: rng.int(0, 0x7fffffff),
     face_shape: rng.pick(FACE_SHAPES),
   };
+}
+
+const NATURAL_HAIR: readonly string[] = HAIR_TONES.filter((h) => !GRAY_HAIR.includes(h));
+
+export const ageClass = (years: number): Age => (years < 26 ? "young" : years < 60 ? "adult" : "older");
+
+// Lines of age: none before 45, then more with each stage (75 and over clearly aged).
+export const wrinklesFor = (years: number): number => (years < 45 ? 0 : years < 60 ? 1 : years < 75 ? 2 : years < 85 ? 3 : 4);
+
+function withTraits(base: PortraitParams, seed: number, traits: PortraitTraits): PortraitParams {
+  const t = createRng(hashSeed("portrait-traits", seed));
+  const p: PortraitParams = { ...base };
+  const sex = traits.sex;
+  const years = traits.age !== null ? Math.max(0, Math.floor(traits.age)) : null;
+  // Presentation: usually the conventional one for the printed sex, sometimes not.
+  const pres: Sex | null = sex === null ? null : t.chance(0.88) ? sex : sex === "M" ? "F" : "M";
+  const old = years !== null && years >= 60;
+  const veryOld = years !== null && years >= 75;
+  const young = years !== null && years < 26;
+
+  if (pres !== null) {
+    const f = pres === "F";
+    p.hair_style = f
+      ? t.weighted<HairStyle>(
+        veryOld || old
+          ? [["straight_long", 0.6], ["wavy_long", 0.8], ["bob", 4], ["curly", 3], ["coily", 1], ["braids", 0.3], ["side_part", 2], ["cropped", 3]]
+          : [["straight_long", 3], ["wavy_long", 3], ["bob", 2.5], ["curly", 2], ["coily", 1.2], ["braids", 1.5], ["side_part", 1], ["cropped", 0.8]],
+      )
+      : t.weighted<HairStyle>(
+        old
+          ? [["cropped", 3], ["side_part", 2], ["buzz", 2], ["receding", veryOld ? 5 : 3.5], ["bald", veryOld ? 0 : 1.2], ["curly", 0.6], ["coily", 0.6]]
+          : [["cropped", 4], ["buzz", 2], ["side_part", 3], ["curly", 1.5], ["coily", 1.2], ["receding", young ? 0.2 : 1], ["bald", young ? 0.1 : 0.4]],
+      );
+    p.neckline = t.weighted<Neckline>(
+      f
+        ? [["crew", 2], ["v_neck", 3], ["sweater", 2], ["collared", 1], ["jacket", 1]]
+        : [["collared", 3], ["crew", 3], ["jacket", 2], ["sweater", 2], ["v_neck", 1]],
+    );
+    p.earrings = t.chance(f ? (old ? 0.4 : 0.45) : 0.04);
+    p.clip = f && p.hair_style !== "bald" && t.chance(young ? 0.25 : 0.12);
+    p.blush = t.chance(f ? (old ? 0.4 : 0.85) : 0.15);
+    p.brow_thick = t.chance(f ? 0.25 : 0.65) ? 2 : 1;
+    p.face_shape = t.weighted<FaceShape>(
+      f
+        ? [["oval", 3], ["heart", old ? 0.5 : 3], ["round", 2], ["long", 1], ["square", 0.5]]
+        : [["square", 3], ["oval", 2], ["long", 2], ["round", 1], ["heart", 0.3]],
+    );
+    p.jaw = f ? t.int(1, 2) : t.int(0, 1);
+  }
+  // Facial hair belongs to the printed sex, not the presentation.
+  if (sex === "F") p.facial_hair = "none";
+  else if (sex === "M" && pres === "F") p.facial_hair = t.chance(0.1) ? "stubble" : "none";
+  else if (sex === "M") {
+    p.facial_hair = young
+      ? t.weighted<FacialHair>([["none", 60], ["stubble", 22], ["mustache", 5], ["goatee", 5], ["beard", 8]])
+      : old
+        ? t.weighted<FacialHair>([["none", 40], ["stubble", 8], ["mustache", 14], ["goatee", 10], ["beard", 28]])
+        : p.facial_hair;
+  }
+
+  if (years !== null) {
+    p.age = ageClass(years);
+    p.age_years = years;
+    p.wrinkles = wrinklesFor(years);
+    // Hair colour: no gray when young, mostly gray at 60 and over, always at 75 and over.
+    if (years < 45) {
+      if (GRAY_HAIR.includes(p.hair)) p.hair = t.pick(NATURAL_HAIR);
+    } else if (veryOld) {
+      p.hair = t.chance(0.5) ? "#D8D4CA" : "#8E8E8A";
+    } else if (old) {
+      if (t.chance(0.85)) p.hair = t.pick(GRAY_HAIR);
+    } else if (years >= 50 && t.chance(0.3)) {
+      p.hair = t.pick(GRAY_HAIR);
+    }
+    if (veryOld && p.hair_style === "bald") p.hair_style = "receding";
+    if (old) {
+      // A softer jaw; more glasses; less colour in the cheeks.
+      p.face_shape = t.weighted<FaceShape>([["round", 3], ["oval", 3], ["long", 1]]);
+      p.jaw = t.int(1, 2);
+      if (t.chance(0.4)) p.glasses = true;
+      p.freckles = false;
+    }
+    if (veryOld) p.blush = false;
+  }
+  return p;
+}
+
+// ---- Traits read from the data ----
+
+// Whole years on `on` for someone born on `birth` (both YYYY-MM-DD); null if either is unreadable.
+export function ageAt(birth: ISODate | null, on: ISODate): number | null {
+  const re = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const b = birth === null ? null : re.exec(birth);
+  const o = re.exec(on);
+  if (b === null || o === null) return null;
+  let years = Number(o[1]) - Number(b[1]);
+  if (Number(o[2]) < Number(b[2]) || (Number(o[2]) === Number(b[2]) && Number(o[3]) < Number(b[3]))) years--;
+  return years < 0 ? null : years;
+}
+
+// The applicant as shown in the booth: sex from the identity document, else the first
+// document that prints one; age at `as_of` from the declared birth date.
+export function applicantTraits(app: Application, as_of: ISODate): PortraitTraits {
+  const docs = [app.id_document, ...app.citizenship_documents, app.residency_declaration];
+  let sex: Sex | null = null;
+  for (const d of docs) {
+    if (d !== null && d.sex !== undefined && d.sex !== null) {
+      sex = d.sex;
+      break;
+    }
+  }
+  return { sex, age: ageAt(app.declared_birth_date, as_of) };
+}
+
+// A portrait printed on a document: the document's own sex, and the age the person was when
+// it was issued (as_of when the document carries no issue date).
+export function documentTraits(d: Document, as_of: ISODate): PortraitTraits {
+  return { sex: d.sex ?? null, age: ageAt(d.birth_date, d.issue_date ?? as_of) };
 }
 
 // The seed shown in the booth: the identity document's, else any document's, else a hash
@@ -771,33 +907,43 @@ export function portraitPixels(p: PortraitParams, opts: PortraitOpts = {}): Port
   set(33, nb, tone(skin, 1));
   adj(31, nb, 1);
 
-  // ---- Facial hair (built from tapered clumps, drawn before the mouth) ----
+  // ---- Facial hair: solid masses with soft painted edges (no strands, no rng), drawn before the mouth ----
   const my = nb + 7;
   const hw = Math.floor(p.mouth_w / 2);
-  const fhOpts = (w: number): LockOpts => ({ w, bulge: 0.4, amp: 0.3 });
-  if (p.facial_hair === "mustache" || p.facial_hair === "goatee" || p.facial_hair === "beard") {
-    for (const side of [-1, 1]) {
-      lock(CX + side * 0.6, my - 3.6, CX + side * 8, my - 0.6 + jit(1), { w: 2.4, bulge: 0.8, amp: side * 0.4 });
-    }
-  }
-  if (p.facial_hair === "goatee") {
-    for (const dxo of [-3, 0, 3]) lock(CX + dxo, my + 3, CX + dxo * 1.2, my + 10 + jit(1), fhOpts(2.1));
-  }
+  const hairShade = (x: number, y: number): number => tone(hairR, headLum(x + 0.5, y + 0.5) > 0.5 ? 2 : 1);
   if (p.facial_hair === "beard") {
+    // Covers cheeks, jaw and chin, leaving the lips (and the mouth row above and below) open.
     const beardTop = (dx: number): number => (dx > rx - 4 ? CY - 3 : CY + 4 + (rx - 4 - dx) * 0.5);
     const holeLip: Inside = (fx, fy) => Math.abs(fx - CX) <= hw + 1.5 && fy >= my - 1.5 && fy <= my + 3.5;
     paint(
       (fx, fy) => headInside(0.5)(fx, fy) && fy >= beardTop(Math.abs(fx - CX)) && !holeLip(fx, fy),
-      (x, y) => tone(hairR, headLum(x + 0.5, y + 0.5) > 0.5 ? 2 : 1),
+      hairShade,
       tone(hairR, 1),
     );
-    for (let k = 0; k <= 6; k++) {
-      const jf = Math.min(1, Math.max(0.4, fm.halfW(0.7) / (rx * 0.8)));
-      const xo = (-rx + 5 + k * ((2 * rx - 10) / 6)) * jf;
-      if (Math.abs(xo) < 3) continue;
-      lock(CX + xo, CY + ry - 8, CX + xo * 1.05, chinY + 2 + rng.int(0, 4), { w: 2.8, bulge: 0.6, amp: 0.3, bias: Math.abs(xo) > 9 ? -1 : 0 });
-    }
-    for (const side of [-1, 1]) lock(CX + side * (rx - 3), CY - 2, CX + side * (fm.halfW(0.5) - 2), CY + ry - 6, { w: 2.2, bulge: 0.2 });
+  }
+  if (p.facial_hair === "mustache" || p.facial_hair === "goatee" || p.facial_hair === "beard") {
+    // Sits on the upper lip, ending a row above the lip line, thicker in the middle.
+    const wide = hw + 2.5;
+    paint(
+      (fx, fy) => {
+        const u = Math.abs(fx - CX) / wide;
+        return u <= 1 && fy >= my - 4.2 + u * 1.6 && fy <= my - 1.6 - u * 0.6;
+      },
+      hairShade,
+      tone(hairR, 1),
+      my - 6,
+      my,
+    );
+  }
+  if (p.facial_hair === "goatee") {
+    // A rounded patch under the lip, clear of the mouth.
+    paint(
+      (fx, fy) => ((fx - CX) / 3.8) ** 2 + ((fy - (my + 6)) / 3) ** 2 <= 1 && fy >= my + 3.2,
+      hairShade,
+      tone(hairR, 1),
+      my + 2,
+      my + 12,
+    );
   }
   if (p.facial_hair === "stubble") {
     for (let y = my - 4; y <= chinY; y++) {
@@ -881,12 +1027,16 @@ export function portraitPixels(p: PortraitParams, opts: PortraitOpts = {}): Port
         lock(rxp, ryp, CX + side * (rx + ext * (0.3 + 0.7 * u)), CY - 6 + (dropEnd + 6) * u, { w, bulge: 2.4, amp: jit(1) * 0.5 });
       }
     };
+    // Long, braided and tightly curled hair has weight and does not stand up: its tufts stop at
+    // the skull line instead of rising off it (only the short styles keep a small rise).
+    const heavyHair = longStyle || hairStyle === "braids" || hairStyle === "curly" || hairStyle === "coily";
     const tufts = (n: number, side: number): void => {
       for (let i = 0; i < n; i++) {
         const u = (i + 0.3 + rng.next() * 0.4) / n;
         const xr = CX + side * u * rx * 0.85;
         const ty = topY(xr);
-        lock(CX + side * u * rx * 0.55, ty + 6, xr + side * rng.int(1, 3), ty - rng.int(1, 3), { w: 3.6, bulge: 0.8, amp: side * 0.4 });
+        const rise = heavyHair ? rng.int(0, 1) - 1 : rng.int(1, 3);
+        lock(CX + side * u * rx * 0.55, ty + 6, xr + side * rng.int(1, 3), ty - rise, { w: 3.6, bulge: 0.8, amp: side * 0.4 });
       }
     };
 
@@ -974,12 +1124,67 @@ export function portraitPixels(p: PortraitParams, opts: PortraitOpts = {}): Port
     }
     // Loose wisps and strands past the outline.
     if (hairStyle !== "buzz") {
-      for (let k = 0; k < 4; k++) {
+      for (let k = 0; k < (heavyHair ? 22 : 4); k++) {
         const side = rng.chance(0.5) ? -1 : 1;
         const x = CX + side * rng.int(3, Math.floor(rx) - 3);
         const ty = topY(x);
-        lock(x, ty + 3, x + side * rng.int(4, 8), ty - rng.int(4, 8), { w: 1.1, amp: side * 0.8, flat: 3 });
+        const run = rng.int(4, 8);
+        const lift = rng.int(4, 8);
+        // Loose strands follow gravity: on heavy hair they trail down along the head, never up
+        // into thin spikes. On short styles they hug the scalp and never poke out sideways.
+        if (heavyHair) {
+          // Start at the side of the head and droop outward and down.
+          const sx = CX + side * (rx - 4);
+          // Above ear level a strand hugs the outline (one pixel out at most); lower ones swing wider.
+          const high = k < 12;
+          const sy = high ? CY - 22 + k * 2 + (lift & 1) : CY + 2 + (k - 12) * 2 + (lift & 1);
+          if (high) {
+            // Find the outline on this row and lay the strand along it, one pixel proud at most.
+            let edge = side < 0 ? 0 : W - 1;
+            for (let i = 0; i < 32 && fromBackdrop(get(edge, sy)); i++) edge -= side;
+            lock(edge - side * 3, sy, edge + side, sy + 2 + (lift >> 2), { w: 1.1, flat: 3 });
+          } else lock(sx, sy, sx + side * (run + 1), sy + 3 + (lift >> 1), { w: 1.1, amp: side * 0.8, flat: 3 });
+        } else
+          lock(x, ty + 3, x + side * Math.min(run, 2), ty + 3 + lift, { w: 1.1, amp: side * 0.5, flat: 3 });
       }
+    }
+  }
+
+  // ---- Lines of age: darker skin pixels only (hair and features are left alone) ----
+  const wr = p.wrinkles ?? 0;
+  if (wr > 0) {
+    const line = (x: number, y: number, d = -1): void => {
+      if (owner.get(get(x, y))?.r === skin) adj(x, y, d);
+      const mx = W - 1 - x;
+      if (owner.get(get(mx, y))?.r === skin) adj(mx, y, d);
+    };
+    // Crow's feet fan out from the outer corner of each eye.
+    line(lx0 - 2, ey + 2);
+    line(lx0 - 3, ey + 1);
+    line(lx0 - 3, ey + 3);
+    if (wr >= 2) {
+      for (let u = 2; u <= 5; u++) line(lx0 + u, ey + eh + 1); // bags under the eyes
+      for (const [dx, dy] of [[5, 1], [5, 2], [6, 3], [6, 4]] as const) line(CX - dx, nb + dy); // nose to mouth
+    }
+    if (wr >= 3) {
+      for (const [dx, dy] of [[6, 5], [7, 6], [hw + 2, 7]] as const) line(CX - dx, nb + dy);
+      line(CX - hw - 1, my + 1);
+      line(CX - hw - 1, my + 2);
+      line(lx0 - 4, ey + 2);
+      line(lx0 - 4, ey + 4);
+      for (const x of [CX - 9, CX - 8, CX - 7, CX - 5, CX - 4, CX - 3, CX - 2, CX - 1]) line(x, CY - 18); // forehead
+      for (const x of [CX - 8, CX - 7, CX - 5, CX - 4, CX - 3, CX - 2]) line(x, CY - 15);
+    }
+    if (wr >= 4) {
+      line(CX - 1, ey - 5, -2); // frown lines between the brows
+      line(CX - 1, ey - 4, -2);
+      line(CX - 2, ey - 6);
+      for (const x of [CX - 7, CX - 6, CX - 5, CX - 3, CX - 2, CX - 1]) line(x, CY - 21);
+      for (const x of [CX - 2, CX - 1]) line(x, my + 5); // chin crease
+      for (const [dx, dy] of [[hw + 4, 4], [hw + 4, 5], [hw + 5, 6], [hw + 6, 7]] as const) line(CX - dx, my + dy); // jowls
+      for (const [dx, dy] of [[6, 5], [7, 6]] as const) line(CX - dx, nb + dy, -2);
+      line(lx0 + 1, ey + eh + 4);
+      line(lx0 + 2, ey + eh + 4);
     }
   }
 

@@ -6,6 +6,7 @@ import { activeRuleIds, generateShift, orderShift, type GeneratedApplicant } fro
 import { rules } from "../rules";
 import type { Decision, DecisionLogEntry, SaveV1 } from "../save/schema";
 import { fill, isValidDate } from "./format";
+import { ruleTitle } from "./ruletext";
 import { findReason, reasonCatalog, reasonConfirmed, type DocSource } from "./reasons";
 
 // The shift state machine (DESIGN 2.3 to 2.7, 6; build-4 flow). Pure: every function returns a
@@ -178,7 +179,7 @@ function nextShiftId(shift_id: string): string {
   return shifts[i + 1]?.shift_id ?? shift_id;
 }
 
-const ruleList = (ids: readonly string[]): string => ids.map((id) => `Rule ${id}`).join(", ");
+const ruleList = (ids: readonly string[]): string => ids.map((id) => ruleTitle(id) || id).join(", ");
 
 // Three errors: the attempt ends, the shift-start balance returns, and the same applicants
 // come back in the order seeded by the next attempt number. The bulletin stays on the desk.

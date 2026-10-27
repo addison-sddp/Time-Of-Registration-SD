@@ -1,0 +1,11 @@
+/* Fade to and from black around the shift summary. Skipped entirely under reduced motion (app.ts). */
+.fade-veil {
+  position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; z-index: 9800;
+  transition: opacity 600ms ease-in-out;
+}
+.fade-veil.on { opacity: 1; pointer-events: auto; }
+:root[data-reduced-motion="1"] .fade-veil { transition: none; }
+
+.kbd-list { margin: 0.5em 0 0; padding-top: 0.5em; border-top: 1px solid rgba(255, 255, 255, 0.25); }
+.kbd-list h3 { margin: 0 0 0.25em; font-size: 0.95em; }
+.kbd-list p { margin: 0.15em 0; font-size: 0.85em; }
