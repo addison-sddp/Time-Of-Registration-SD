@@ -43,6 +43,11 @@ export interface Narrative {
   };
   desk: Record<string, string>;
   ledger: Record<string, string>;
+  flow: Record<string, string>;
+  denial: Record<string, string>;
+  reasons: Record<string, string>;
+  fields: Record<string, string>;
+  bin: Record<string, string>;
   notes: Record<string, string>;
   summary: Record<string, string>;
   doc_types: Record<string, string>;

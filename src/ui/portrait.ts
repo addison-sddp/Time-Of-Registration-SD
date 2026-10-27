@@ -3,8 +3,8 @@ import { s } from "./dom";
 
 // Draws the pixel grid as <rect>s (horizontal runs of one colour) with crisp edges. The
 // view box is the grid itself, so the CSS box must be an integer multiple of 32 x 40.
-export function drawPortrait(seed: number, label: string): SVGElement {
-  const g = portraitPixels(portraitParams(seed));
+export function drawPortrait(seed: number, label: string, backdrop = true): SVGElement {
+  const g = portraitPixels(portraitParams(seed), { backdrop });
   const svg = s("svg", {
     viewBox: `0 0 ${g.width} ${g.height}`,
     role: "img",
@@ -19,7 +19,7 @@ export function drawPortrait(seed: number, label: string): SVGElement {
       const v = g.pixels[y * g.width + x] ?? 0;
       let end = x + 1;
       while (end < g.width && g.pixels[y * g.width + end] === v) end++;
-      svg.append(s("rect", { x, y, width: end - x, height: 1, fill: g.palette[v] ?? "#000" }));
+      if (v !== g.transparent) svg.append(s("rect", { x, y, width: end - x, height: 1, fill: g.palette[v] ?? "#000" }));
       x = end;
     }
   }

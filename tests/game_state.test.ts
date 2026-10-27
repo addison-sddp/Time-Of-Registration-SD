@@ -2,12 +2,13 @@ import { describe, expect, test } from "vitest";
 import { calendar, economy, narrative, shifts } from "../src/data";
 import { evaluate } from "../src/engine/evaluate";
 import {
-  acknowledgeNotice, currentApplicant, decide, isFinalShift, saveFromState, startCalendarShift,
+  acknowledgeNotice, currentApplicant, isFinalShift, saveFromState, startCalendarShift,
   startSandboxShift, type GameState,
 } from "../src/game";
 import { generateShift } from "../src/gen";
 import { rules } from "../src/rules";
 import { newSave, type Decision } from "../src/save";
+import { decide } from "./flow_helpers";
 
 const SALT = "unit-salt";
 const save = () => newSave(SALT, "2026-01-01T00:00:00Z");
@@ -194,6 +195,7 @@ describe("decide", () => {
       processed: n,
       correct: n - 1,
       errors: 1,
+      reasons_not_confirmed: 0,
       earnings: 7 * (n - 1) - 12,
     });
     expect(s.balance).toBe(7 * (n - 1) - 12);
@@ -237,17 +239,16 @@ describe("decision log and save", () => {
     const r = evaluate(a0.application, s.as_of, calendar, rules, s.activation);
     if (!r.ok) throw new Error("engine");
     s = decide(s, dec);
-    expect(s.decision_log).toEqual([
-      {
-        shift_id: "s07",
-        application_id: a0.application.application_id,
-        as_of: "2026-04-01",
-        player_decision: dec,
-        engine_verdict: r.value.verdict,
-        violated_rule_ids: r.value.violated_rule_ids,
-        attempt_number: 1,
-      },
-    ]);
+    expect(s.decision_log).toHaveLength(1);
+    expect(s.decision_log[0]).toMatchObject({
+      shift_id: "s07",
+      application_id: a0.application.application_id,
+      as_of: "2026-04-01",
+      player_decision: dec,
+      engine_verdict: r.value.verdict,
+      violated_rule_ids: r.value.violated_rule_ids,
+      attempt_number: 1,
+    });
   });
 
   test("a completed shift advances the save; mid-shift stores the shift-start balance", () => {

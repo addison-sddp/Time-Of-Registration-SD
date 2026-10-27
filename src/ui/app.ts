@@ -76,9 +76,23 @@ export function startApp(host: HTMLElement): void {
   motionQuery.addEventListener("change", applySettings);
   applySettings();
 
+  // Browsers block autoplay: the first click or keypress creates the audio context, and any
+  // music or ambience already requested then starts.
   const unlock = (): void => audio.unlock();
   window.addEventListener("pointerdown", unlock);
+  window.addEventListener("click", unlock);
   window.addEventListener("keydown", unlock);
+  const click = (): void => audio.sfx("ui_click");
+
+  // Menus (title, settings, sandbox) have music; shifts have the room tone instead.
+  const menuAudio = (): void => {
+    audio.ambience(false);
+    audio.music("menu");
+  };
+  const shiftAudio = (): void => {
+    audio.music(null);
+    audio.ambience(true);
+  };
 
   const showFooter = (): void => {
     footer.textContent = storageMessage;
@@ -131,8 +145,11 @@ export function startApp(host: HTMLElement): void {
       applySettings();
       persist();
     };
-    for (const el of [scaleInput, volInput, muteInput, motionInput]) el.addEventListener("input", save);
-    const close = h("button", { type: "button", class: "primary", onclick: () => panel.remove() }, T(N.settings, "close"));
+    for (const el of [scaleInput, volInput, muteInput, motionInput]) {
+      el.addEventListener("input", save);
+      el.addEventListener("change", click); // fires on slider release and on checkbox toggle
+    }
+    const close = h("button", { type: "button", class: "primary", onclick: () => { click(); panel.remove(); } }, T(N.settings, "close"));
     const panel = h(
       "div",
       { class: "settings-panel overlay", role: "dialog", "aria-modal": "true", "aria-label": T(N.settings, "heading") },
@@ -158,17 +175,18 @@ export function startApp(host: HTMLElement): void {
     const hasRecord = profile.flags[STARTED_FLAG] === true;
     const buttons: HTMLElement[] = [];
     if (hasRecord && !allComplete()) {
-      buttons.push(h("button", { type: "button", class: "primary", onclick: () => beginCalendar() }, T(t, "continue")));
+      buttons.push(h("button", { type: "button", class: "primary", onclick: () => { click(); beginCalendar(); } }, T(t, "continue")));
     }
     const startBtn = h("button", { type: "button", class: hasRecord && !allComplete() ? "" : "primary", onclick: () => {
+      click();
       if (!hasRecord) { newGame(); return; }
       confirmBox.hidden = false;
       yes.focus();
     } }, T(t, "start"));
-    const yes = h("button", { type: "button", onclick: () => newGame() }, T(t, "confirm"));
-    const no = h("button", { type: "button", onclick: () => { confirmBox.hidden = true; startBtn.focus(); } }, T(t, "cancel"));
+    const yes = h("button", { type: "button", onclick: () => { click(); newGame(); } }, T(t, "confirm"));
+    const no = h("button", { type: "button", onclick: () => { click(); confirmBox.hidden = true; startBtn.focus(); } }, T(t, "cancel"));
     const confirmBox = h("div", { class: "confirm", hidden: true, role: "alert" }, h("p", {}, T(t, "confirm_replace")), yes, no);
-    buttons.push(startBtn, h("button", { type: "button", onclick: () => openSettings() }, T(t, "settings")));
+    buttons.push(startBtn, h("button", { type: "button", onclick: () => { click(); openSettings(); } }, T(t, "settings")));
     const el = h(
       "main",
       { class: "title-screen" },
@@ -181,6 +199,7 @@ export function startApp(host: HTMLElement): void {
       storageMessage ? h("p", { class: "storage-message" }, storageMessage) : null,
     );
     show(el);
+    menuAudio();
     (el.querySelector("button.primary") as HTMLElement | null)?.focus();
   }
 
@@ -198,6 +217,7 @@ export function startApp(host: HTMLElement): void {
   // ---- Play ----
   function mountPlay(state: GameState, exitLabel: string, exit: () => void): void {
     show();
+    shiftAudio();
     play = createPlay(state, {
       audio,
       layout: profile.desk_layout,
@@ -238,7 +258,7 @@ export function startApp(host: HTMLElement): void {
     const next = sandbox ? showSandbox : isFinalShift(state.shift.shift_id) ? showTitle : beginCalendar;
     const label = sandbox ? T(N.sandbox, "exit") : isFinalShift(state.shift.shift_id) ? T(S, "return_to_title") : T(S, "continue");
     const row = (name: string, value: string): HTMLElement => h("div", { class: "sum-row" }, h("dt", {}, name), h("dd", {}, value));
-    const btn = h("button", { type: "button", class: "primary", onclick: () => next() }, label);
+    const btn = h("button", { type: "button", class: "primary", onclick: () => { click(); next(); } }, label);
     const el = h(
       "main",
       { class: "summary-screen" },
@@ -251,12 +271,14 @@ export function startApp(host: HTMLElement): void {
         row(T(S, "processed"), String(sum.processed)),
         row(T(S, "correct"), String(sum.correct)),
         row(T(S, "errors"), String(sum.errors)),
+        row(T(S, "reasons_unconfirmed"), String(sum.reasons_not_confirmed)),
         row(T(S, "earnings"), formatMoney(sum.earnings)),
         row(T(S, "balance"), formatMoney(state.balance)),
       ),
       btn,
     );
     show(el);
+    audio.ambience(false);
     btn.focus();
   }
 
@@ -273,6 +295,8 @@ export function startApp(host: HTMLElement): void {
     const dateInput = h("input", { id: "sb-date", type: "date", value: defaultShift?.shift_date ?? "" });
     const attempt = h("input", { id: "sb-attempt", type: "number", min: "1", step: "1", value: "1" });
     const error = h("p", { class: "storage-message", role: "alert" });
+    for (const b of ruleBoxes) b.input.addEventListener("change", click);
+    for (const el of [shiftSel, dateInput, attempt]) el.addEventListener("change", click);
     shiftSel.addEventListener("change", () => {
       const s = shifts.find((x) => x.shift_id === shiftSel.value);
       if (s !== undefined) dateInput.value = s.shift_date;
@@ -299,7 +323,7 @@ export function startApp(host: HTMLElement): void {
       h("p", {}, T(B, "note")),
       h(
         "form",
-        { class: "sandbox-form", onsubmit: (e: Event) => { e.preventDefault(); begin(); } },
+        { class: "sandbox-form", onsubmit: (e: Event) => { e.preventDefault(); click(); begin(); } },
         h("fieldset", {}, h("legend", {}, T(B, "active_rules")), ...ruleBoxes.map((b) => h("label", { class: "check" }, b.input, b.id))),
         h("label", { for: "sb-date" }, T(B, "as_of")), dateInput,
         h("label", { for: "sb-shift" }, T(B, "shift")), shiftSel,
@@ -307,12 +331,13 @@ export function startApp(host: HTMLElement): void {
         error,
         h("div", { class: "menu" },
           h("button", { type: "submit", class: "primary" }, T(B, "begin")),
-          h("button", { type: "button", onclick: () => openSettings() }, T(N.title, "settings")),
-          h("button", { type: "button", onclick: () => showTitle() }, T(B, "title_screen")),
+          h("button", { type: "button", onclick: () => { click(); openSettings(); } }, T(N.title, "settings")),
+          h("button", { type: "button", onclick: () => { click(); showTitle(); } }, T(B, "title_screen")),
         ),
       ),
     );
     show(el);
+    menuAudio();
     ruleBoxes[0]?.input.focus();
   }
 

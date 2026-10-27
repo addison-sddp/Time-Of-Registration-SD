@@ -6,10 +6,15 @@ import { activeRuleIds, generateShift, orderShift, type GeneratedApplicant } fro
 import { rules } from "../rules";
 import type { Decision, DecisionLogEntry, SaveV1 } from "../save/schema";
 import { fill, isValidDate } from "./format";
+import { findReason, reasonCatalog, reasonConfirmed, type DocSource } from "./reasons";
 
-// The shift state machine (DESIGN 2.3 to 2.7, 6). Pure: every function returns a new state.
-// Verdicts come only from the engine's evaluate on the finished Application; the generator's
-// intent is never read here.
+// The shift state machine (DESIGN 2.3 to 2.7, 6; build-4 flow). Pure: every function returns a
+// new state, or the same state when the action does not apply. Verdicts come only from the
+// engine's evaluate on the finished Application; the generator's intent is never read here.
+//
+// Per applicant: callNext, then either stampApprove, or startDenial + chooseReason
+// (+ chooseSource) + stampDenied, then fileForm. A stamp is pending until the form is filed;
+// scoring happens at filing.
 
 export type Mode = "calendar" | "sandbox";
 
@@ -17,7 +22,22 @@ export interface ShiftSummary {
   processed: number;
   correct: number;
   errors: number;
+  reasons_not_confirmed: number;
   earnings: number;
+}
+
+// The denial checklist while it is open.
+export interface DenialDraft {
+  step: "reasons" | "source" | "ready";
+  reason_id: string | null;
+  source: DocSource | null;
+}
+
+// A stamped form that has not been filed yet.
+export interface PendingStamp {
+  decision: Decision;
+  reason_id: string | null;
+  source: DocSource | null;
 }
 
 export interface GameState {
@@ -30,6 +50,11 @@ export interface GameState {
   content: GeneratedApplicant[]; // canonical order, identical on every attempt
   applicants: GeneratedApplicant[]; // order for this attempt
   index: number; // applicant at the counter; equals applicants.length when none remain
+  bulletin_delivered: boolean; // the briefing letter is on the desk
+  present: boolean; // the applicant at `index` has walked in and is not yet filed
+  draft: DenialDraft | null;
+  pending: PendingStamp | null;
+  unconfirmed: number; // correct denials this attempt whose reason or source was not confirmed
   correct: number;
   errors: number;
   balance: number;
@@ -75,6 +100,11 @@ function begin(a: BeginArgs): StartResult {
       content,
       applicants: orderShift(content, a.save_salt, a.shift.shift_id, a.attempt_number),
       index: 0,
+      bulletin_delivered: false,
+      present: false,
+      draft: null,
+      pending: null,
+      unconfirmed: 0,
       correct: 0,
       errors: 0,
       balance: a.balance,
@@ -151,7 +181,7 @@ function nextShiftId(shift_id: string): string {
 const ruleList = (ids: readonly string[]): string => ids.map((id) => `Rule ${id}`).join(", ");
 
 // Three errors: the attempt ends, the shift-start balance returns, and the same applicants
-// come back in the order seeded by the next attempt number.
+// come back in the order seeded by the next attempt number. The bulletin stays on the desk.
 function restart(s: GameState): GameState {
   const attempt = s.attempt_number + 1;
   return {
@@ -159,6 +189,10 @@ function restart(s: GameState): GameState {
     attempt_number: attempt,
     applicants: orderShift(s.content, s.save_salt, s.shift.shift_id, attempt),
     index: 0,
+    present: false,
+    draft: null,
+    pending: null,
+    unconfirmed: 0,
     correct: 0,
     errors: 0,
     balance: economy.restart_restores_shift_start_balance ? s.balance_at_shift_start : s.balance,
@@ -172,61 +206,147 @@ export function acknowledgeNotice(s: GameState): GameState {
   return s.restart_notice === null ? s : { ...s, restart_notice: null };
 }
 
-export function decide(s: GameState, decision: Decision): GameState {
-  if (s.status !== "in_progress" || s.restart_notice !== null) return s;
+// ---- Opening the shift and calling applicants ------------------------------------------------
+
+export function deliverBulletin(s: GameState): GameState {
+  return s.bulletin_delivered ? s : { ...s, bulletin_delivered: true };
+}
+
+export const canCallNext = (s: GameState): boolean =>
+  s.status === "in_progress" &&
+  s.restart_notice === null &&
+  s.bulletin_delivered &&
+  !s.present &&
+  s.index < s.applicants.length;
+
+export function callNext(s: GameState): GameState {
+  return canCallNext(s) ? { ...s, present: true } : s;
+}
+
+// ---- Stamping --------------------------------------------------------------------------------
+
+const canStamp = (s: GameState): boolean =>
+  s.status === "in_progress" && s.restart_notice === null && s.present && s.pending === null;
+
+export function stampApprove(s: GameState): GameState {
+  if (!canStamp(s) || s.draft !== null) return s;
+  return { ...s, pending: { decision: "approve", reason_id: null, source: null } };
+}
+
+export function startDenial(s: GameState): GameState {
+  if (!canStamp(s) || s.draft !== null) return s;
+  return { ...s, draft: { step: "reasons", reason_id: null, source: null } };
+}
+
+export function chooseReason(s: GameState, reason_id: string): GameState {
+  if (s.draft === null || s.draft.step !== "reasons") return s;
+  const listed = reasonCatalog(activeRules(s)).some((g) => g.reasons.some((r) => r.id === reason_id));
+  const reason = listed ? findReason(reason_id) : null;
+  if (reason === null) return s;
+  return { ...s, draft: { step: reason.needs_source ? "source" : "ready", reason_id, source: null } };
+}
+
+// Picking an item is allowed while a source is wanted, including to change an earlier pick.
+export function chooseSource(s: GameState, source: DocSource): GameState {
+  const d = s.draft;
+  if (d === null || d.step === "reasons" || d.reason_id === null) return s;
+  if (findReason(d.reason_id)?.needs_source !== true) return s;
+  return { ...s, draft: { step: "ready", reason_id: d.reason_id, source } };
+}
+
+export function backToReasons(s: GameState): GameState {
+  if (s.draft === null || s.draft.step === "reasons") return s;
+  return { ...s, draft: { step: "reasons", reason_id: null, source: null } };
+}
+
+export function cancelDenial(s: GameState): GameState {
+  return s.draft === null ? s : { ...s, draft: null };
+}
+
+export function stampDenied(s: GameState): GameState {
+  const d = s.draft;
+  if (!canStamp(s) || d === null || d.step !== "ready") return s;
+  return { ...s, draft: null, pending: { decision: "deny", reason_id: d.reason_id, source: d.source } };
+}
+
+// ---- Filing and scoring ----------------------------------------------------------------------
+
+export function fileForm(s: GameState): GameState {
+  if (s.status !== "in_progress" || s.restart_notice !== null || !s.present || s.pending === null) return s;
   const applicant = s.applicants[s.index];
   if (applicant === undefined) return s;
 
   const result = evaluate(applicant.application, s.as_of, calendar, rules, s.activation);
   if (!result.ok) {
-    // Not a player error: nothing is counted and the applicant stays at the counter.
+    // Not a player error: nothing is counted and the applicant stays at the booth.
     const key = result.error.code === "NO_ELECTION_CONFIGURED" ? "no_election" : "evaluation_failed";
     return { ...s, note: narrative.notes[key] ?? null };
   }
   const verdict = result.value;
+  const stamp = s.pending;
+  const decision = stamp.decision;
   const n = s.index + 1;
   const wasCorrect = decision === verdict.verdict;
   const word = decision === "approve" ? "approved" : "denied";
 
+  const reason = stamp.reason_id === null ? null : findReason(stamp.reason_id);
+  const confirmed =
+    decision === "deny" && wasCorrect
+      ? reasonConfirmed(applicant.application, s.as_of, verdict.results, reason, stamp.source)
+      : false;
+  const notConfirmed = decision === "deny" && wasCorrect && !confirmed;
+  const freePass = notConfirmed && s.unconfirmed === 0; // the first one in an attempt carries no penalty
+  const asError = !wasCorrect || (notConfirmed && !freePass);
+
+  const ledgerKey =
+    decision === "approve" ? "line_approved" : notConfirmed ? "line_denied_unconfirmed" : "line_denied";
+
+  const entry: DecisionLogEntry = {
+    shift_id: s.shift.shift_id,
+    application_id: applicant.application.application_id,
+    as_of: s.as_of,
+    player_decision: decision,
+    engine_verdict: verdict.verdict,
+    violated_rule_ids: [...verdict.violated_rule_ids],
+    attempt_number: s.attempt_number,
+  };
+  if (decision === "deny") {
+    if (reason !== null) entry.denial_reason = { rule_id: reason.rule_id, condition: reason.condition };
+    entry.denial_source = stamp.source === null ? null : { doc_type: stamp.source.doc_type, field: stamp.source.field };
+    entry.reason_confirmed = confirmed;
+  }
+
   let next: GameState = {
     ...s,
     index: s.index + 1,
-    ledger: [
-      ...s.ledger,
-      fill(narrative.ledger[decision === "approve" ? "line_approved" : "line_denied"] ?? "", { n }),
-    ],
-    decision_log:
-      s.mode === "calendar"
-        ? [
-            ...s.decision_log,
-            {
-              shift_id: s.shift.shift_id,
-              application_id: applicant.application.application_id,
-              as_of: s.as_of,
-              player_decision: decision,
-              engine_verdict: verdict.verdict,
-              violated_rule_ids: [...verdict.violated_rule_ids],
-              attempt_number: s.attempt_number,
-            },
-          ]
-        : s.decision_log,
+    present: false,
+    draft: null,
+    pending: null,
+    unconfirmed: s.unconfirmed + (notConfirmed ? 1 : 0),
+    ledger: [...s.ledger, fill(narrative.ledger[ledgerKey] ?? "", { n })],
+    decision_log: s.mode === "calendar" ? [...s.decision_log, entry] : s.decision_log,
   };
 
-  if (wasCorrect) {
+  if (!asError) {
     next = {
       ...next,
       correct: s.correct + 1,
       balance: next.balance + economy.income_per_correct_decision,
-      note: null,
+      note: freePass ? fill(narrative.notes["reason_unconfirmed"] ?? "", { n }) : null,
     };
   } else {
-    const template =
-      decision === "approve" ? narrative.notes["error_approved"] : narrative.notes["error_denied"];
+    let note: string;
+    if (!wasCorrect) {
+      const template = decision === "approve" ? narrative.notes["error_approved"] : narrative.notes["error_denied"];
+      note = fill(template ?? "", { n, rules: ruleList(verdict.violated_rule_ids), word });
+    } else {
+      note = fill(narrative.notes["reason_unconfirmed_error"] ?? "", { n });
+    }
     next = {
       ...next,
       errors: s.errors + 1,
       balance: clampBalance(next.balance - economy.penalty_per_error),
-      note: fill(template ?? "", { n, rules: ruleList(verdict.violated_rule_ids), word }),
+      note,
     };
     if (next.errors >= economy.error_limit_per_shift) return restart(next);
   }
@@ -244,6 +364,7 @@ export function decide(s: GameState, decision: Decision): GameState {
         processed: next.index,
         correct: next.correct,
         errors: next.errors,
+        reasons_not_confirmed: next.unconfirmed,
         earnings: next.balance - next.balance_at_shift_start,
       },
     };

@@ -13,6 +13,10 @@ export interface DecisionLogEntry {
   engine_verdict: Decision;
   violated_rule_ids: string[];
   attempt_number: number;
+  // Optional (build 4): present on denials only. Older saves have none of these.
+  denial_reason?: { rule_id: string; condition: string };
+  denial_source?: { doc_type: string; field: string } | null;
+  reason_confirmed?: boolean;
 }
 
 export interface SaveV1 {
@@ -72,8 +76,18 @@ const isAttempt = (v: unknown): v is number => isNum(v) && Number.isInteger(v) &
 const isRecordOf = (v: unknown, test: (x: unknown) => boolean): boolean =>
   isObj(v) && Object.values(v).every(test);
 
+const absent = (v: unknown): boolean => v === undefined;
+
 function isLogEntry(v: unknown): v is DecisionLogEntry {
+  if (!isObj(v)) return false;
+  const reason = v["denial_reason"];
+  const source = v["denial_source"];
+  const optionalOk =
+    (absent(reason) || (isObj(reason) && isStr(reason["rule_id"]) && isStr(reason["condition"]))) &&
+    (absent(source) || source === null || (isObj(source) && isStr(source["doc_type"]) && isStr(source["field"]))) &&
+    (absent(v["reason_confirmed"]) || isBool(v["reason_confirmed"]));
   return (
+    optionalOk &&
     isObj(v) &&
     isStr(v["shift_id"]) &&
     isStr(v["application_id"]) &&

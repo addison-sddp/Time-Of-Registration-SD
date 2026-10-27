@@ -26,6 +26,58 @@ export const HAIR_STYLES: readonly HairStyle[] = [
 ];
 export const FACIAL_HAIR: readonly FacialHair[] = ["none", "stubble", "mustache", "goatee", "beard"];
 
+export type FaceShape = "oval" | "heart" | "square" | "long" | "round";
+export const FACE_SHAPES: readonly FaceShape[] = ["oval", "heart", "square", "long", "round"];
+
+// Hand-placed silhouettes: [t, w] where t runs -1 (crown) .. 1 (chin) and w is the half width as
+// a fraction of the cheekbone half width. The widest point sits at about eye-to-nose height, the
+// temples are narrower, and the jaw tapers (heart to a point, square to a flat chin with corners).
+type Pt = readonly [number, number];
+const FACE_PROFILES: Record<FaceShape, readonly Pt[]> = {
+  oval: [[-1, 0], [-0.985, 0.26], [-0.95, 0.42], [-0.9, 0.55], [-0.82, 0.68], [-0.72, 0.78], [-0.6, 0.87], [-0.45, 0.94], [-0.3, 0.98], [-0.15, 1], [0.1, 1], [0.25, 0.97], [0.4, 0.9], [0.55, 0.79], [0.7, 0.65], [0.82, 0.52], [0.9, 0.4], [0.96, 0.27], [1, 0.17]],
+  heart: [[-1, 0], [-0.985, 0.3], [-0.95, 0.46], [-0.9, 0.58], [-0.82, 0.71], [-0.72, 0.81], [-0.6, 0.88], [-0.45, 0.94], [-0.3, 0.98], [-0.15, 1], [0.05, 1], [0.2, 0.92], [0.35, 0.8], [0.5, 0.66], [0.65, 0.5], [0.8, 0.33], [0.92, 0.18], [1, 0.07]],
+  square: [[-1, 0], [-0.985, 0.3], [-0.95, 0.46], [-0.9, 0.58], [-0.8, 0.72], [-0.7, 0.82], [-0.55, 0.9], [-0.4, 0.95], [-0.2, 0.98], [-0.05, 1], [0.2, 1], [0.5, 0.97], [0.7, 0.93], [0.82, 0.86], [0.9, 0.74], [0.95, 0.6], [1, 0.52]],
+  long: [[-1, 0], [-0.99, 0.22], [-0.95, 0.4], [-0.9, 0.52], [-0.8, 0.66], [-0.68, 0.78], [-0.5, 0.88], [-0.3, 0.95], [-0.15, 1], [0.25, 1], [0.4, 0.95], [0.55, 0.86], [0.7, 0.74], [0.82, 0.62], [0.9, 0.5], [0.96, 0.38], [1, 0.28]],
+  round: [[-1, 0], [-0.97, 0.34], [-0.92, 0.52], [-0.85, 0.66], [-0.75, 0.78], [-0.6, 0.88], [-0.45, 0.95], [-0.3, 0.99], [-0.1, 1], [0.15, 1], [0.3, 0.96], [0.45, 0.89], [0.6, 0.8], [0.75, 0.67], [0.87, 0.52], [0.95, 0.38], [1, 0.28]],
+};
+// Per shape [width, height] scale on the base half sizes.
+const FACE_SCALE: Record<FaceShape, readonly [number, number]> = {
+  oval: [1, 1], heart: [1, 1], square: [0.98, 0.97], long: [0.93, 1.04], round: [1.03, 0.97],
+};
+
+export interface FaceMetrics {
+  rx: number; // cheekbone half width
+  ry: number; // half height, crown to chin
+  halfW(t: number): number; // half width at t in -1..1
+  cheekWidth: number;
+  height: number;
+}
+
+export function faceMetrics(p: { head_rx: number; head_ry: number; jaw: number; face_shape: FaceShape }): FaceMetrics {
+  const [wm, hm] = FACE_SCALE[p.face_shape];
+  const rx = p.head_rx * wm;
+  const ry = p.head_ry * hm;
+  const pts = FACE_PROFILES[p.face_shape];
+  const jawAdj = 1 + (p.jaw - 1) * 0.04;
+  const halfW = (t: number): number => {
+    if (t <= -1) return 0;
+    if (t >= 1) return (pts[pts.length - 1]?.[1] ?? 0) * rx * jawAdj;
+    for (let i = 1; i < pts.length; i++) {
+      const b = pts[i]!;
+      if (t <= b[0]) {
+        const a = pts[i - 1]!;
+        const f = (t - a[0]) / (b[0] - a[0]);
+        const w = a[1] + (b[1] - a[1]) * f;
+        return w * rx * (t > 0.35 ? jawAdj : 1);
+      }
+    }
+    return 0;
+  };
+  let wide = 0;
+  for (let k = 0; k <= 8; k++) wide = Math.max(wide, halfW(-0.2 + k * 0.05));
+  return { rx, ry, halfW, cheekWidth: wide * 2, height: ry * 2 };
+}
+
 export interface PortraitParams {
   skin: string; // base (mid) tone of the skin ramp
   skin_shade: string; // paired shade tone from the tone list
@@ -60,6 +112,7 @@ export interface PortraitParams {
   part_side: number; // -1 or 1
   backdrop: string;
   detail_seed: number;
+  face_shape: FaceShape;
 }
 
 // Limited palettes: a wide range of skin and hair tones.
@@ -106,8 +159,8 @@ export function portraitParams(seed: number): PortraitParams {
     facial_hair,
     age,
     eye_color: rng.pick(EYE_COLORS),
-    head_rx: rng.int(19, 22),
-    head_ry: rng.int(23, 26),
+    head_rx: rng.int(19, 20),
+    head_ry: rng.int(25, 26),
     jaw: rng.int(0, 2),
     eye_gap: rng.int(8, 9),
     eye_h: rng.int(4, 5),
@@ -132,6 +185,7 @@ export function portraitParams(seed: number): PortraitParams {
     part_side: rng.chance(0.5) ? -1 : 1,
     backdrop: rng.pick(BACKDROPS),
     detail_seed: rng.int(0, 0x7fffffff),
+    face_shape: rng.pick(FACE_SHAPES),
   };
 }
 
@@ -222,7 +276,15 @@ export interface PortraitPixels {
   height: number;
   palette: string[];
   pixels: Uint8Array; // row-major palette indices
+  transparent: number | null; // palette index of the see-through pixels (backdrop false); else null
 }
+
+export interface PortraitOpts {
+  backdrop?: boolean; // default true; false leaves the person on a transparent background
+}
+
+// Edge pixels that blend toward the backdrop use this mid-tone instead when there is no backdrop.
+const NEUTRAL_EDGE = "#7C8892";
 
 interface Ramp {
   idx: number[];
@@ -241,7 +303,7 @@ interface LockOpts {
 const W = PX_W;
 const H = PX_H;
 const CX = 32; // centre line, between pixel columns 31 and 32
-const CY = 34; // head centre row
+const CY = 32; // head centre row
 const LASH = "#241622"; // deep purple-black, used only for lashes and pupils
 const CATCHLIGHT = "#FFF8EC";
 const GLINT = "#F6FAFC";
@@ -249,8 +311,13 @@ const GLINT = "#F6FAFC";
 type Inside = (fx: number, fy: number) => boolean;
 type Shade = (x: number, y: number) => number;
 
-export function portraitPixels(p: PortraitParams): PortraitPixels {
+export function portraitPixels(p: PortraitParams, opts: PortraitOpts = {}): PortraitPixels {
+  const withBackdrop = opts.backdrop !== false;
   const rng: Rng = createRng(hashSeed("portrait-px", p.detail_seed));
+  // Blended palette entries, so those that start from the backdrop can be recoloured afterwards.
+  const mixes = new Map<number, { a: number; b: number | null; hex: string | null; num: number; den: number }>();
+  const bdSet = new Set<number>();
+  const fromBackdrop = (i: number): boolean => bdSet.has(i) || mixes.get(i) !== undefined && fromBackdrop(mixes.get(i)!.a);
   const grid = new Uint8Array(W * H);
   const palette: string[] = [];
   const owner = new Map<number, { r: Ramp; l: number }>();
@@ -283,6 +350,7 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
     let v = cache.get(key);
     if (v === undefined) {
       v = addColor(mixHex(palette[a] ?? "#000000", palette[b] ?? "#000000", num, den));
+      mixes.set(v, { a, b, hex: null, num, den });
       cache.set(key, v);
     }
     return v;
@@ -292,6 +360,7 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
     let v = cache.get(key);
     if (v === undefined) {
       v = addColor(mixHex(palette[a] ?? "#000000", hex, num, den));
+      mixes.set(v, { a, b: null, hex, num, den });
       cache.set(key, v);
     }
     return v;
@@ -368,6 +437,7 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
   const [sh, ss, sl] = hexToHsl(p.skin);
   const lips = ramp(hslToHex(hueToward(sh, 352, 16), clampI(ss + 18, 0, 100), clampI(sl - 8, 26, 72)));
   const bd = ramp(p.backdrop);
+  for (const i of bd.idx) bdSet.add(i);
   const lash = single(LASH);
 
   // ---- Backdrop: flat warm tone, a darker stepped band along the bottom ----
@@ -379,19 +449,24 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
   }
 
   // ---- Geometry ----
-  const rx = p.head_rx;
-  const ry = p.head_ry;
-  const taper = p.jaw * 0.03;
+  const fm = faceMetrics(p);
+  const rx = fm.rx;
+  const ry = fm.ry;
   const headInside = (ex: number): Inside => (fx, fy) => {
     const dy = fy - CY;
-    const u = dy / (ry + (dy > 0 ? ex : 0));
-    if (u < -1 || u > 1) return false;
-    const w = (rx + ex) * Math.sqrt(1 - u * u) * (dy > 0 ? 1 - taper * u * u * 4 : 1);
-    return Math.abs(fx - CX) <= w;
+    const t = dy / (ry + (dy > 0 ? ex : 0));
+    if (t < -1 || t > 1) return false;
+    return Math.abs(fx - CX) <= fm.halfW(t) + ex;
   };
   const head = headInside(0);
   const headLum = (fx: number, fy: number): number => lum((fx - CX) / rx, (fy - CY) / ry);
-  const topY = (fx: number): number => CY - ry * Math.sqrt(Math.max(0, 1 - ((fx - CX) / rx) ** 2));
+  const topY = (fx: number): number => {
+    const dx = Math.abs(fx - CX);
+    for (let fy = CY - ry; fy <= CY; fy += 0.25) if (fm.halfW((fy - CY) / ry) >= dx) return fy;
+    return CY;
+  };
+  const earY = CY + 1.5; // ears sit between eye and nose height
+  const earW = fm.halfW((earY - CY) / ry);
   const hairStyle = p.hair_style;
 
   // ---- Hair helpers ----
@@ -530,7 +605,7 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
   // ---- Neck ----
   const chinY = CY + ry;
   paint(
-    (fx, fy) => fy >= chinY - 8 && fy <= 68 && Math.abs(fx - CX) <= 7,
+    (fx, fy) => fy >= chinY - 8 && fy <= 68 && Math.abs(fx - CX) <= 6,
     (x, y) => tone(skin, y < chinY + 5 ? 1 : x >= CX + 3 ? 1 : 2),
     tone(skin, 0),
   );
@@ -619,16 +694,16 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
 
   // ---- Ears, then head ----
   for (const side of [-1, 1]) {
-    const ecx = CX + side * (rx + 0.5);
+    const ecx = CX + side * (earW + 0.3);
     paint(
-      (fx, fy) => ((fx - ecx) / 3) ** 2 + ((fy - (CY + 2)) / 4.6) ** 2 <= 1,
+      (fx, fy) => ((fx - ecx) / 2.4) ** 2 + ((fy - earY) / 4.2) ** 2 <= 1,
       (x, y) => {
-        const core = Math.abs(x + 0.5 - ecx) < 1.2 && y > CY - 1 && y < CY + 5;
+        const core = Math.abs(x + 0.5 - ecx) < 1 && y > CY - 1 && y < CY + 4;
         return tone(skin, core ? 1 : side < 0 ? 2 : 1);
       },
       tone(skin, 0),
       CY - 4,
-      CY + 9,
+      CY + 8,
     );
   }
   // Flat, clean face lighting: a lit midtone, a shadow side on the right, a soft highlight
@@ -717,11 +792,12 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
       tone(hairR, 1),
     );
     for (let k = 0; k <= 6; k++) {
-      const xo = -rx + 5 + k * ((2 * rx - 10) / 6);
+      const jf = Math.min(1, Math.max(0.4, fm.halfW(0.7) / (rx * 0.8)));
+      const xo = (-rx + 5 + k * ((2 * rx - 10) / 6)) * jf;
       if (Math.abs(xo) < 3) continue;
       lock(CX + xo, CY + ry - 8, CX + xo * 1.05, chinY + 2 + rng.int(0, 4), { w: 2.8, bulge: 0.6, amp: 0.3, bias: Math.abs(xo) > 9 ? -1 : 0 });
     }
-    for (const side of [-1, 1]) lock(CX + side * (rx - 3), CY - 2, CX + side * (rx - 2), CY + ry - 6, { w: 2.2, bulge: 0.2 });
+    for (const side of [-1, 1]) lock(CX + side * (rx - 3), CY - 2, CX + side * (fm.halfW(0.5) - 2), CY + ry - 6, { w: 2.2, bulge: 0.2 });
   }
   if (p.facial_hair === "stubble") {
     for (let y = my - 4; y <= chinY; y++) {
@@ -780,10 +856,11 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
     const vx = hairStyle === "coily" ? 7 : hairStyle === "curly" ? 6 : 2;
     const vy = hairStyle === "coily" ? 7 : hairStyle === "curly" ? 5 : 2;
     const cyH = CY - 4;
+    // The scalp follows the skull profile (a taller copy above the centre line, the real
+    // temples and cheeks below it), so hair hugs the new head shape.
     const under: Inside = (fx, fy) => {
-      const nx = (fx - CX) / (rx + vx - 1);
-      const ny = (fy - cyH) / (ry + vy - 1);
-      if (nx * nx + ny * ny > 1 || fy >= hairline(fx) + 1) return false;
+      const tt = fy <= cyH ? (fy - cyH) / (ry + vy - 1) : Math.max(-0.15, (fy - CY) / ry);
+      if (tt < -1 || tt > 1 || Math.abs(fx - CX) > fm.halfW(tt) + vx - 1 || fy >= hairline(fx) + 1) return false;
       return hairStyle !== "receding" || Math.abs(fx - CX) >= 11 || fy < CY - ry + 4;
     };
     paint(under, (x, y) => tone(hairR, hairStyle === "buzz" ? ((x + y) % 3 === 0 ? 2 : 1) : 1), tone(hairR, 0));
@@ -899,7 +976,7 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
     if (hairStyle !== "buzz") {
       for (let k = 0; k < 4; k++) {
         const side = rng.chance(0.5) ? -1 : 1;
-        const x = CX + side * rng.int(3, rx - 3);
+        const x = CX + side * rng.int(3, Math.floor(rx) - 3);
         const ty = topY(x);
         lock(x, ty + 3, x + side * rng.int(4, 8), ty - rng.int(4, 8), { w: 1.1, amp: side * 0.8, flat: 3 });
       }
@@ -938,11 +1015,11 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
   // ---- Accessories ----
   if (p.earrings) {
     for (const side of [-1, 1]) {
-      const x = side < 0 ? CX - rx - 2 : CX + rx + 1;
-      set(x, CY + 8, tone(metal, 3));
-      set(x + 1, CY + 8, tone(metal, 2));
-      set(x, CY + 9, tone(metal, 2));
-      set(x + 1, CY + 9, tone(metal, 1));
+      const x = side < 0 ? CX - Math.round(earW) - 3 : CX + Math.round(earW) + 2;
+      set(x, CY + 6, tone(metal, 3));
+      set(x + 1, CY + 6, tone(metal, 2));
+      set(x, CY + 7, tone(metal, 2));
+      set(x + 1, CY + 7, tone(metal, 1));
     }
   }
   if (p.clip && hairStyle !== "bald" && hairStyle !== "buzz") {
@@ -954,5 +1031,19 @@ export function portraitPixels(p: PortraitParams): PortraitPixels {
     set(x0 + 2, yc, single(cr[1] ?? p.clip_color));
   }
 
-  return { width: W, height: H, palette, pixels: grid };
+  if (withBackdrop) return { width: W, height: H, palette, pixels: grid, transparent: null };
+
+  // No backdrop: blends that started from the backdrop now start from a neutral mid-tone, and the
+  // backdrop pixels themselves become transparent. Every other pixel keeps its index.
+  const colorOf = (i: number): string => {
+    if (bdSet.has(i)) return NEUTRAL_EDGE;
+    const m = mixes.get(i);
+    if (m === undefined || !fromBackdrop(i)) return palette[i] ?? "#000000";
+    return mixHex(colorOf(m.a), m.b !== null ? colorOf(m.b) : (m.hex ?? "#000000"), m.num, m.den);
+  };
+  for (const [i] of mixes) if (fromBackdrop(i)) palette[i] = colorOf(i);
+  palette.push("transparent");
+  const clear = palette.length - 1;
+  for (let i = 0; i < grid.length; i++) if (bdSet.has(grid[i] ?? 0)) grid[i] = clear;
+  return { width: W, height: H, palette, pixels: grid, transparent: clear };
 }

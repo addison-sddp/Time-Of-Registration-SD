@@ -9,6 +9,12 @@ export interface DeskContext {
   height: number;
   scale: () => number;
   changed: () => void;
+  // Optional hooks for the play screen. `cue` plays the pickup and drop sounds, `moved` fires while
+  // an item is dragged, and `released` fires after a drag; it returns true when it handled the
+  // drop itself (so no generic drop sound is played).
+  cue?: (el: HTMLElement, what: "pickup" | "drop") => void;
+  moved?: (el: HTMLElement, key: string) => void;
+  released?: (el: HTMLElement, key: string) => boolean;
 }
 
 const STEP = 8;
@@ -29,9 +35,10 @@ export function placeItem(el: HTMLElement, key: string, def: { x: number; y: num
   el.addEventListener("focus", raise);
 
   el.addEventListener("pointerdown", (e) => {
-    if ((e.target as HTMLElement).closest("button, input, select, a")) return;
+    if ((e.target as HTMLElement).closest("button, input, select, a, .src-target")) return;
     if (e.button !== 0) return;
     raise();
+    ctx.cue?.(el, "pickup");
     const startX = e.clientX;
     const startY = e.clientY;
     const origin = { x: parseFloat(el.style.left) || 0, y: parseFloat(el.style.top) || 0 };
@@ -40,6 +47,7 @@ export function placeItem(el: HTMLElement, key: string, def: { x: number; y: num
     const onMove = (ev: PointerEvent): void => {
       const k = ctx.scale() || 1;
       move(el, origin.x + (ev.clientX - startX) / k, origin.y + (ev.clientY - startY) / k, ctx, false);
+      ctx.moved?.(el, key);
     };
     const onUp = (): void => {
       el.classList.remove("dragging");
@@ -47,10 +55,20 @@ export function placeItem(el: HTMLElement, key: string, def: { x: number; y: num
       el.removeEventListener("pointerup", onUp);
       el.removeEventListener("pointercancel", onUp);
       commit(el, key, ctx);
+      const handled = ctx.released?.(el, key) ?? false;
+      if (!handled) ctx.cue?.(el, "drop");
     };
     el.addEventListener("pointermove", onMove);
     el.addEventListener("pointerup", onUp);
     el.addEventListener("pointercancel", onUp);
+  });
+
+  // Keyboard moves: one pickup sound at the first arrow, one drop sound when focus leaves.
+  let held = false;
+  el.addEventListener("blur", () => {
+    if (!held) return;
+    held = false;
+    ctx.cue?.(el, "drop");
   });
 
   el.addEventListener("keydown", (e) => {
@@ -67,6 +85,10 @@ export function placeItem(el: HTMLElement, key: string, def: { x: number; y: num
     const d = delta[e.key];
     if (d === undefined) return;
     e.preventDefault();
+    if (!held) {
+      held = true;
+      ctx.cue?.(el, "pickup");
+    }
     move(el, (parseFloat(el.style.left) || 0) + d[0], (parseFloat(el.style.top) || 0) + d[1], ctx, false);
     commit(el, key, ctx);
   });

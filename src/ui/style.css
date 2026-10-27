@@ -59,8 +59,10 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
   border: 14px solid #14263f; background: #8E9AA3; overflow: hidden;
   box-shadow: inset 0 0 0 4px var(--muted-gold);
 }
-.booth-glass { position: absolute; inset: 0 0 34px 0; display: flex; justify-content: center; align-items: flex-end; }
-.booth-portrait { width: 192px; height: 240px; border: 3px solid var(--ink-black); background: var(--paper-cream); animation: arrive 0.35s ease-out; }
+.booth-glass { position: absolute; inset: 0 0 34px 0; overflow: hidden; }
+.booth-scene { position: absolute; left: 0; top: 0; display: block; image-rendering: pixelated; }
+.portrait-layer { position: absolute; inset: 0; }
+.booth-portrait { position: absolute; left: 80px; bottom: -32px; width: 192px; height: 240px; will-change: transform; }
 .booth-portrait svg, .doc .doc-portrait svg { image-rendering: pixelated; }
 .booth-portrait svg { width: 100%; height: 100%; display: block; }
 .ledge { position: absolute; left: 0; right: 0; bottom: 0; height: 34px; background: #5C4A33; border-top: 4px solid #3E3222; }
@@ -113,8 +115,8 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
 .election p { margin: 4px 0 0; }
 .election-month { font-weight: bold; border-bottom: 1px solid var(--ink-black); }
 
-.flag { width: 130px; box-shadow: 2px 3px 0 rgba(0, 0, 0, 0.35); }
-.flag img { display: block; width: 100%; height: auto; pointer-events: none; }
+.flag { width: 88px; }
+.flag-art { display: block; pointer-events: none; image-rendering: pixelated; filter: drop-shadow(3px 3px 0 rgba(0, 0, 0, 0.3)); }
 
 /* Document cards */
 .doc {
@@ -166,18 +168,21 @@ button.small { padding: 0.15em 0.6em; font-size: 0.9em; }
 .doc.copy::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: var(--speckle); opacity: 0.55; }
 
 /* Stamps */
-.stamps { position: absolute; left: 1030px; top: 330px; display: flex; gap: 10px; }
+.stamps { position: absolute; left: 1040px; top: 140px; display: flex; gap: 10px; }
+.stamps { align-items: flex-end; }
 .stamp {
-  width: 110px; height: 150px; padding: 4px; background: #3A3A3A; border: 3px solid var(--ink-black);
-  color: var(--paper-cream); display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+  padding: 4px 2px 2px; background: transparent; border: 0;
+  color: var(--paper-cream); display: flex; flex-direction: column; align-items: center; gap: 4px;
   transition: transform 0.08s;
 }
-.stamp:hover { background: #484848; }
-.stamp-face { width: 100%; height: auto; background: var(--paper-cream); }
+.stamp:hover { filter: brightness(1.12); }
+.stamp:disabled { opacity: 0.45; cursor: default; filter: grayscale(0.6); }
+.stamp:focus-visible { outline: 3px solid var(--muted-gold); outline-offset: 3px; }
+.stamp-face { display: block; image-rendering: pixelated; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.35)); }
 .key-hint { font-weight: bold; border: 2px solid var(--paper-cream); padding: 0 0.6em; }
-.stamp.pressed { transform: translateY(8px) rotate(-2deg); }
-.impression { position: absolute; left: 420px; top: 120px; width: 260px; pointer-events: none; animation: fade 0.9s ease-out forwards; z-index: 8000; opacity: 0.85; }
-.impression svg { width: 100%; height: auto; }
+.stamp.pressed { transform: translateY(8px); }
+.impression { position: absolute; left: 420px; top: 120px; pointer-events: none; animation: fade 0.9s ease-out forwards; z-index: 8000; opacity: 0.85; }
+.impression-art { display: block; }
 
 /* Screens and overlays */
 .title-screen, .summary-screen, .sandbox-screen {
